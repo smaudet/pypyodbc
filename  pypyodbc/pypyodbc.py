@@ -20,7 +20,7 @@
 import sys, os, ctypes, decimal, datetime
 
 library = "/usr/lib/libodbc.so"
-VERBOSE = 1
+VERBOSE = 0
 
 #Costants
 SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
@@ -34,50 +34,96 @@ SQL_HANDLE_DESCR = 4
 SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2 = 200, 2
 
 SQL_TABLE_NAMES = 3
-SQL_C_CHAR = 1
+
 
 def dttm_cvt(x):
-    if x == '':
-        return None
-    else:
-        return datetime.datetime(2012,1,1)
+    if x == '': return None
+    else: return datetime.datetime(int(x[0:4]),int(x[5:7]),int(x[8:10]),int(x[10:13]),int(x[14:16]),int(x[17:19]))
 def tm_cvt(x):
-    if x == '':
-        return None
-    else:
-        return datetime.time(13)
-    
+    if x == '': return None
+    else: return datetime.time(int(x[0:2]),int(x[3:5]),int(x[6:8]))
 def dt_cvt(x):
-    if x == '':
-        return None
-    else:
-        return datetime.date(2012,1,2)
+    if x == '': return None
+    else: return datetime.datetime(int(x[0:4]),int(x[5:7]),int(x[8:10]))
+    
+# Get the constants defined in sql.h sqlext.h sqltypes.h sqlucode.h 
+# from mingw32-runtime_3.13-1_all.deb
 
-#Types
-SqlTypes = {0: ('TYPE_NULL', lambda x: None), 
-1: ('CHAR', lambda x: str(x),'SQL_C_CHAR'),
-2: ('NUMERIC', lambda x: decimal.Decimal(x)),
-3: ('DECIMAL', lambda x: decimal.Decimal(x)),
-4: ('INTEGER', lambda x: long(x)),
-5: ('SMALLINT', lambda x: long(x)),
-6: ('FLOAT', lambda x: float(x)),
-7: ('REAL', lambda x: float(x)),
-8: ('DOUBLE',lambda x: float(x)),
-9: ('DATE', lambda x: dt_cvt(x)),
-10: ('TIME', lambda x: tm_cvt(x)),
-11: ('TIMESTAMP', lambda x: dttm_cvt(x)),
-12: ('VARCHAR', lambda x: str(x),'SQL_C_CHAR'),
--1: ('LONGVARCHAR', lambda x: unicode(x,'mbcs'),'SQL_C_CHAR'),
--2: ('BINARY', lambda x: bytearray(x)),
--3: ('VARBINARY', lambda x: bytearray(x)),
--4: ('LONGVARBINARY', lambda x: bytearray(x)),
--5: ('BIGINT', lambda x: long(x)),
--6: ('TINYINT', lambda x: long(x)),
--7: ('BIT', lambda x: bool(x)),
--8: ('WCHAR', lambda x: unicode(x,'mbcs'),'SQL_C_WCHAR'),
--9: ('WVARCHAR', lambda x: unicode(x,'mbcs'),'SQL_C_WCHAR'),
--10:('WLONGVARCHAR', lambda x: unicode(x,'mbcs'),'SQL_C_WCHAR') \
-  }
+SQL_TYPE_NULL=0
+SQL_CHAR=1
+SQL_NUMERIC=2
+SQL_DECIMAL=3
+SQL_INTEGER=4
+SQL_SMALLINT=5
+SQL_FLOAT=6
+SQL_REAL=7
+SQL_DOUBLE=8
+SQL_DATE=9
+SQL_TIME=10
+SQL_TIMESTAMP=11
+SQL_VARCHAR=12
+SQL_LONGVARCHAR=-1
+SQL_BINARY=-2
+SQL_VARBINARY=-3
+SQL_LONGVARBINARY=-4
+SQL_BIGINT=-5
+SQL_TINYINT=-6
+SQL_BIT=-7
+SQL_WCHAR=-8
+SQL_WVARCHAR=-9
+SQL_WLONGVARCHAR=-10
+SQL_TYPE_DATE=91
+SQL_TYPE_TIME=92
+SQL_TYPE_TIMESTAMP=93
+
+SQL_C_CHAR=SQL_CHAR
+SQL_C_NUMERIC=SQL_NUMERIC
+SQL_C_LONG=SQL_INTEGER
+SQL_C_SHORT=SQL_SMALLINT
+SQL_C_FLOAT=SQL_REAL
+SQL_C_DOUBLE=SQL_DOUBLE
+SQL_C_TYPE_DATE=SQL_TYPE_DATE
+SQL_C_TYPE_TIME=SQL_TYPE_TIME
+SQL_C_BINARY=SQL_BINARY
+SQL_C_BINARY=SQL_BINARY
+SQL_C_LONG=SQL_INTEGER
+SQL_C_TINYINT=SQL_TINYINT
+SQL_C_BIT=SQL_BIT
+SQL_C_WCHAR=SQL_WCHAR
+
+# Below Datatype mappings Referenced the document at
+# http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.aseodbc/html/aseodbc/CACFDIGH.htm
+def create_1024_buffer_w():
+    return ctypes.create_unicode_buffer(1024)
+
+def create_1024_buffer():
+    return ctypes.create_string_buffer(1024)
+
+
+SqlTypes = {SQL_TYPE_NULL   : ('SQL_TYPE_NULL', lambda x: None, SQL_C_CHAR), 
+SQL_CHAR            : ('SQL_CHAR', lambda x: str(x),SQL_C_CHAR, create_1024_buffer),
+SQL_NUMERIC         : ('SQL_NUMERIC', lambda x: decimal.Decimal(x),SQL_C_NUMERIC),
+SQL_DECIMAL         : ('SQL_DECIMAL', lambda x: decimal.Decimal(x),SQL_C_NUMERIC),
+SQL_INTEGER         : ('SQL_INTEGER', lambda x: long(x),SQL_C_LONG, lambda :ctypes.c_long()),
+SQL_SMALLINT        : ('SQL_SMALLINT', lambda x: long(x),SQL_C_SHORT, ctypes.c_short),
+SQL_FLOAT           : ('SQL_FLOAT', lambda x: float(x),SQL_C_FLOAT, ctypes.c_float),
+SQL_REAL            : ('SQL_REAL', lambda x: float(x),SQL_C_FLOAT, ctypes.c_float),
+SQL_DOUBLE          : ('SQL_DOUBLE',lambda x: float(x),SQL_C_DOUBLE, ctypes.c_double),
+SQL_DATE            : ('SQL_DATE', lambda x: dt_cvt(x), SQL_C_CHAR , create_1024_buffer),
+SQL_TIME            : ('SQL_TIME', lambda x: tm_cvt(x),SQL_C_CHAR, create_1024_buffer),
+SQL_TIMESTAMP       : ('SQL_TIMESTAMP', lambda x: dttm_cvt(x),SQL_C_CHAR,create_1024_buffer),
+SQL_VARCHAR         : ('SQL_VARCHAR', lambda x: str(x),SQL_C_CHAR, create_1024_buffer),
+SQL_LONGVARCHAR     : ('SQL_LONGVARCHAR', lambda x: unicode(x,'mbcs'),SQL_C_CHAR, create_1024_buffer),
+SQL_BINARY          : ('SQL_BINARY', lambda x: bytearray(x), SQL_C_BINARY,SQL_C_BINARY, ctypes.c_buffer),
+SQL_VARBINARY       : ('SQL_VARBINARY', lambda x: bytearray(x),SQL_C_BINARY,SQL_C_BINARY, ctypes.c_buffer),
+SQL_LONGVARBINARY   : ('SQL_LONGVARBINARY', lambda x: bytearray(x),SQL_C_BINARY, ctypes.c_buffer),
+SQL_BIGINT          : ('SQL_BIGINT', lambda x: long(x),SQL_C_LONG, ctypes.c_long),
+SQL_TINYINT         : ('SQL_TINYINT', lambda x: long(x),SQL_C_TINYINT, ctypes.c_short),
+SQL_BIT             : ('SQL_BIT', lambda x: bool(x), SQL_C_BIT),
+SQL_WCHAR           : ('SQL_WCHAR', lambda x: unicode(x,'mbcs'),SQL_C_WCHAR, create_1024_buffer_w),
+SQL_WVARCHAR        : ('SQL_WVARCHAR', lambda x: x,SQL_C_WCHAR, create_1024_buffer_w),
+SQL_WLONGVARCHAR    :('SQL_WLONGVARCHAR', lambda x: unicode(x,'mbcs'),SQL_C_WCHAR, create_1024_buffer_w) \
+}
 
 
 
@@ -118,24 +164,24 @@ else:
     except:
         raise OdbcLibraryError, 'Error while loading %s' % library
 
-ODBC_API.SQLGetDiagRec.restype = ctypes.c_short
-ODBC_API.SQLAllocHandle.restype = ctypes.c_short
-ODBC_API.SQLSetEnvAttr.restype = ctypes.c_short
-ODBC_API.SQLExecDirect.restype = ctypes.c_short
-ODBC_API.SQLRowCount.restype = ctypes.c_short
-ODBC_API.SQLNumResultCols.restype = ctypes.c_short
-ODBC_API.SQLFetch.restype = ctypes.c_short
-ODBC_API.SQLBindCol.restype = ctypes.c_short
-ODBC_API.SQLCloseCursor.restype = ctypes.c_short
-ODBC_API.SQLSetConnectAttr.restype = ctypes.c_short
-ODBC_API.SQLDriverConnect.restype = ctypes.c_short
-ODBC_API.SQLConnect.restype = ctypes.c_short
-ODBC_API.SQLTables.restype = ctypes.c_short
-ODBC_API.SQLDescribeCol.restype = ctypes.c_short
-ODBC_API.SQLDataSources.restype = ctypes.c_short
-ODBC_API.SQLFreeHandle.restype = ctypes.c_short
-ODBC_API.SQLDisconnect.restype = ctypes.c_short
-ODBC_API.SQLEndTran.restype = ctypes.c_short
+ODBC_API.SQLGetDiagRec.restype      = ctypes.c_short
+ODBC_API.SQLAllocHandle.restype     = ctypes.c_short
+ODBC_API.SQLSetEnvAttr.restype      = ctypes.c_short
+ODBC_API.SQLExecDirect.restype      = ctypes.c_short
+ODBC_API.SQLRowCount.restype        = ctypes.c_short
+ODBC_API.SQLNumResultCols.restype   = ctypes.c_short
+ODBC_API.SQLFetch.restype           = ctypes.c_short
+ODBC_API.SQLBindCol.restype         = ctypes.c_short
+ODBC_API.SQLCloseCursor.restype     = ctypes.c_short
+ODBC_API.SQLSetConnectAttr.restype  = ctypes.c_short
+ODBC_API.SQLDriverConnect.restype   = ctypes.c_short
+ODBC_API.SQLConnect.restype         = ctypes.c_short
+ODBC_API.SQLTables.restype          = ctypes.c_short
+ODBC_API.SQLDescribeCol.restype     = ctypes.c_short
+ODBC_API.SQLDataSources.restype     = ctypes.c_short
+ODBC_API.SQLFreeHandle.restype      = ctypes.c_short
+ODBC_API.SQLDisconnect.restype      = ctypes.c_short
+ODBC_API.SQLEndTran.restype         = ctypes.c_short
 
 
 
@@ -205,7 +251,7 @@ if not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
 class Cursor:
     def __init__(self, conx):
         """ Initialize self.stmt_h, which is an handle of a statement
-        And a statement is actually the basis of a "cursor"
+        A statement is actually the basis of a "cursor"
         """
         self._conx = conx
         self.stmt_h = ctypes.c_int()
@@ -284,14 +330,20 @@ class Cursor:
     
     def _fetch(self, num = 0):
         NOC = self.NumOfCols()
-        col_buffs = [ctypes.create_string_buffer(1024) for c in range(NOC)]
+        col_buffs = []
         buff_id = ctypes.c_int()
         for col_num in range(NOC):
-            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SQL_C_CHAR, \
-            ctypes.byref(col_buffs[col_num]), len(col_buffs[col_num]), ctypes.byref(buff_id))
+            col_sql_type_code = self._ColType[col_num]
+            try:
+                a_buffer = SqlTypes[col_sql_type_code][3]()
+            except:
+                print SqlTypes[col_sql_type_code]
+                raise sys.exc_value
+            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SqlTypes[col_sql_type_code][2], \
+            ctypes.byref(a_buffer), 1024, ctypes.byref(buff_id))
             if not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
                 ctrl_err(SQL_HANDLE_STMT, self.stmt_h, ret)
-            
+            col_buffs.append(a_buffer)
             #self.__bind(col_num + 1, col_buffs[col_num], buff_id)
         return self.__fetch(col_buffs, num)
     
@@ -308,16 +360,17 @@ class Cursor:
             i_col = 0
             for col in cols:
                 f = SqlTypes[self._ColType[i_col]][1]
+                
                 try:
                     row.append(f(col.value))
-                    print (col.value)
                 except:
                     print (col.value)
                     print (len(col.value))
                     print (SqlTypes[self._ColType[i_col]][0])
                     print type(col.value)
-                    print (unicode(col.value,'mbcs'))
-                    sys.exit()
+                    x = col.value
+                    print (int(x[0:3]),int(x[5:6]),int(x[8:9]))
+                    raise sys.exc_value
                 i_col += 1
             rows.append(row)
             i_row += 1
@@ -336,15 +389,17 @@ class Cursor:
     
     def __CloseCursor(self):
         """ Call SQLCloseCursor API to free the statement handle"""
+        
+        '''
         ret = ODBC_API.SQLCloseCursor(self.stmt_h)
         if not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
-            ctrl_err(SQL_HANDLE_ENV, self.stmt_h, ret)
-        
+            ctrl_err(SQL_HANDLE_STMT, self.stmt_h, ret)
+        '''
         if self.stmt_h.value:
             if VERBOSE: print 's'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_STMT, self.stmt_h)
             if not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
-                ctrl_err(SQL_HANDLE_ENV, self.stmt_h, ret)
+                ctrl_err(SQL_HANDLE_STMT, self.stmt_h, ret)
         
         return
     
@@ -553,16 +608,16 @@ if __name__ == "__main__":
     #else: t = "ttt"
     
     #cur.close()
-    #cur = conn.cursor()
+    cur = conn.cursor()
     #Get fields on the table
     #cols = cur.columns(t)
     #print cols
     #Make a query
     
-    #cur.close()
+    cur.close()
     cur = conn.cursor()
     
-    cur.execute(u"""select * from yesoulchenyu where 日期时间 IS NOT NULL""".encode('mbcs'))
+    cur.execute(u"""select * from yesoulchenyu""".encode('mbcs'))
     print [(x[0], x[1]) for x in cur.description]
     #Get results
     import time
@@ -575,8 +630,9 @@ if __name__ == "__main__":
                 print (field.encode('mbcs'))
             else:
                 print (field)
-            
             time.sleep(0.2)
+            
+
     
     
     print (len(cur.fetchall()))
@@ -595,7 +651,7 @@ if __name__ == "__main__":
     cur.close
     conn.rollback()
     cur = conn.cursor()
-    import time
+
     cur.execute('update yesoulchenyu set Num = '+str(time.time()))
     conn.commit()
     for row in cur.execute(u"""select * from yesoulchenyu""".encode('mbcs')).fetchone():
@@ -611,6 +667,8 @@ if __name__ == "__main__":
     row = cur.fetchone()
     while row != []:
         row = cur.fetchone()
+        for field in row:
+            x = field
         i += 1
         if i%2500 == 0:
             print (i)
