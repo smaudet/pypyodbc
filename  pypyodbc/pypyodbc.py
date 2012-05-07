@@ -205,7 +205,7 @@ if not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
 class Cursor:
     def __init__(self, conx):
         """ Initialize self.stmt_h, which is an handle of a statement
-        A statement is actually the basis of a "cursor"
+        And a statement is actually the basis of a "cursor"
         """
         self._conx = conx
         self.stmt_h = ctypes.c_int()
