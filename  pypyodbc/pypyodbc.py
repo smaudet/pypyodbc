@@ -1,21 +1,14 @@
 #! /usr/bin/env python
 #coding=utf-8
 
+# Copyright (C) 2012 Henry Zhou <jiangwen365@gmail.com>
 
-# Welcome to RealPyODBC
-# Version 0.1 beta
-# This class help you to connect your python script with ODBC engine.
-#
-# This class is not db-api 2.0 compatible. If you want to help me to do it
-# please modify it and send me an e-mail with your work!
-# All the comunity will thanks you.
-#
-#
-# TO-DO
-# Make compatibility with db-api 2.0, so add:
-# apilevel, theadsafety, paramstyle, cursor, exceptions, ....
-#
-# This software if released with MIT Licence
+# PyPyODBC is develped from RealPyODBC 0.1 beta released on 2004 December by Michele Petrazzo
+# It's amazing that he implemented ODBC funcions with ctypes and as earily as year 2004, when
+# python version was only 2.4 and ctypes was still a 3rd party library and not a part of Python
+# After almost 8 years, I was thhinking about for the same idears and found and got excited by his codes.
+# Thanks Michele
+
 
 import sys, os, ctypes, decimal, datetime
 
