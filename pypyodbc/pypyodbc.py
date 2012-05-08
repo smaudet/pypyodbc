@@ -29,28 +29,16 @@
 # CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 # DEALINGS IN THE SOFTWARE.
 
-import sys, os, ctypes, decimal, datetime
+import sys, os, datetime, ctypes
+from decimal import Decimal
 
 library = "/usr/lib/libodbc.so"
 VERBOSE = 0
-
-
-
-def dttm_cvt(x):
-    if x == '': return None
-    else: return datetime.datetime(int(x[0:4]),int(x[5:7]),int(x[8:10]),int(x[10:13]),int(x[14:16]),int(x[17:19]))
-def tm_cvt(x):
-    if x == '': return None
-    else: return datetime.time(int(x[0:2]),int(x[3:5]),int(x[6:8]))
-def dt_cvt(x):
-    if x == '': return None
-    else: return datetime.datetime(int(x[0:4]),int(x[5:7]),int(x[8:10]))
     
-# Get the constants defined in sql.h sqlext.h sqltypes.h sqlucode.h 
-# from mingw32-runtime_3.13-1_all.deb
+# The constants are defined in cpp header files
+# One source to get these sql.h sqlext.h sqltypes.h sqlucode.h 
+# files is from the mingw32-runtime_3.13-1_all.deb package
 
-
-#Costants
 SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
 SQL_INVALID_HANDLE = -2
 SQL_SUCCESS, SQL_SUCCESS_WITH_INFO = 0, 1
@@ -58,7 +46,7 @@ SQL_NO_DATA_FOUND = 100
 SQL_NULL_DATA = -1
 SQL_NULL_HANDLE, SQL_HANDLE_ENV, SQL_HANDLE_DBC, SQL_HANDLE_STMT = 0, 1, 2, 3
 SQL_HANDLE_DESCR = 4
-SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2 = 200, 2
+SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2, SQL_OV_ODBC3 = 200, 2, 3
 SQL_TABLE_NAMES = 3
 
 SQL_TYPE_NULL=0
@@ -102,40 +90,60 @@ SQL_C_LONG=SQL_INTEGER
 SQL_C_TINYINT=SQL_TINYINT
 SQL_C_BIT=SQL_BIT
 SQL_C_WCHAR=SQL_WCHAR
+SQL_C_TYPE_TIMESTAMP=SQL_TYPE_TIMESTAMP
+SQL_C_TYPE_TIME=SQL_TYPE_TIME
+SQL_C_TYPE_DATE=SQL_TYPE_DATE
+
+
+def dttm_cvt(x):
+    if x == '': return None
+    else: return datetime.datetime(int(x[0:4]),int(x[5:7]),int(x[8:10]),int(x[10:13]),int(x[14:16]),int(x[17:19]))
+
+def tm_cvt(x):
+    if x == '': return None
+    else: return datetime.time(int(x[0:2]),int(x[3:5]),int(x[6:8]))
+
+def dt_cvt(x):
+    if x == '': return None
+    else: return datetime.datetime(int(x[0:4]),int(x[5:7]),int(x[8:10]))
+
+def create_buffer_w():
+    return ctypes.create_unicode_buffer(1024)
+
+def create_buffer():
+    return ctypes.create_string_buffer(1024)
 
 # Below Datatype mappings Referenced the document at
 # http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.aseodbc/html/aseodbc/CACFDIGH.htm
-def create_1024_buffer_w():
-    return ctypes.create_unicode_buffer(1024)
 
-def create_1024_buffer():
-    return ctypes.create_string_buffer(1024)
-
-
-SqlTypes = {
-SQL_TYPE_NULL       : ('SQL_TYPE_NULL',     lambda x: None,             SQL_C_CHAR), 
-SQL_CHAR            : ('SQL_CHAR',          lambda x: str(x),           SQL_C_CHAR,         create_1024_buffer),
-SQL_NUMERIC         : ('SQL_NUMERIC',       lambda x: decimal.Decimal(x),SQL_C_NUMERIC),
-SQL_DECIMAL         : ('SQL_DECIMAL',       lambda x: decimal.Decimal(x),SQL_C_NUMERIC),
+SqlTypes = { \
+SQL_TYPE_NULL       : ('SQL_TYPE_NULL',     lambda x: None,             SQL_C_CHAR,         create_buffer), 
+SQL_CHAR            : ('SQL_CHAR',          lambda x: str(x),           SQL_C_CHAR,         create_buffer),
+SQL_NUMERIC         : ('SQL_NUMERIC',       lambda x: Decimal(x),       SQL_C_CHAR,         create_buffer),
+SQL_DECIMAL         : ('SQL_DECIMAL',       lambda x: Decimal(x),       SQL_C_CHAR,         create_buffer),
 SQL_INTEGER         : ('SQL_INTEGER',       lambda x: long(x),          SQL_C_LONG,         lambda :ctypes.c_long()),
-SQL_SMALLINT        : ('SQL_SMALLINT',      lambda x: long(x),          SQL_C_SHORT,        ctypes.c_short),
-SQL_FLOAT           : ('SQL_FLOAT',         lambda x: float(x),         SQL_C_FLOAT,        ctypes.c_float),
-SQL_REAL            : ('SQL_REAL',          lambda x: float(x),         SQL_C_FLOAT,        ctypes.c_float),
-SQL_DOUBLE          : ('SQL_DOUBLE',        lambda x: float(x),         SQL_C_DOUBLE,       ctypes.c_double),
-SQL_DATE            : ('SQL_DATE',          lambda x: dt_cvt(x),        SQL_C_CHAR ,        create_1024_buffer),
-SQL_TIME            : ('SQL_TIME',          lambda x: tm_cvt(x),        SQL_C_CHAR,         create_1024_buffer),
-SQL_TIMESTAMP       : ('SQL_TIMESTAMP',     lambda x: dttm_cvt(x),      SQL_C_CHAR,         create_1024_buffer),
-SQL_VARCHAR         : ('SQL_VARCHAR',       lambda x: str(x),           SQL_C_CHAR,         create_1024_buffer),
-SQL_LONGVARCHAR     : ('SQL_LONGVARCHAR',   lambda x: unicode(x,'mbcs'),SQL_C_CHAR,         create_1024_buffer),
-SQL_BINARY          : ('SQL_BINARY',        lambda x: bytearray(x),     SQL_C_BINARY,       ctypes.c_buffer),
-SQL_VARBINARY       : ('SQL_VARBINARY',     lambda x: bytearray(x),     SQL_C_BINARY,       ctypes.c_buffer),
-SQL_LONGVARBINARY   : ('SQL_LONGVARBINARY', lambda x: bytearray(x),     SQL_C_BINARY,       ctypes.c_buffer),
-SQL_BIGINT          : ('SQL_BIGINT',        lambda x: long(x),          SQL_C_LONG,         ctypes.c_long),
-SQL_TINYINT         : ('SQL_TINYINT',       lambda x: long(x),          SQL_C_TINYINT,      ctypes.c_short),
-SQL_BIT             : ('SQL_BIT',           lambda x: bool(x),          SQL_C_BIT),
-SQL_WCHAR           : ('SQL_WCHAR',         lambda x: unicode(x,'mbcs'),SQL_C_WCHAR,        create_1024_buffer_w),
-SQL_WVARCHAR        : ('SQL_WVARCHAR',      lambda x: x,                SQL_C_WCHAR,        create_1024_buffer_w),
-SQL_WLONGVARCHAR    :('SQL_WLONGVARCHAR',   lambda x: unicode(x,'mbcs'),SQL_C_WCHAR,        create_1024_buffer_w) \
+SQL_SMALLINT        : ('SQL_SMALLINT',      lambda x: long(x),          SQL_C_SHORT,        lambda :ctypes.c_short),
+SQL_FLOAT           : ('SQL_FLOAT',         lambda x: float(x),         SQL_C_FLOAT,        lambda :ctypes.c_float),
+SQL_REAL            : ('SQL_REAL',          lambda x: float(x),         SQL_C_FLOAT,        lambda :ctypes.c_float),
+SQL_DOUBLE          : ('SQL_DOUBLE',        lambda x: float(x),         SQL_C_DOUBLE,       lambda :ctypes.c_double),
+SQL_DATE            : ('SQL_DATE',          lambda x: dt_cvt(x),        SQL_C_CHAR ,        create_buffer),
+SQL_TIME            : ('SQL_TIME',          lambda x: tm_cvt(x),        SQL_C_CHAR,         create_buffer),
+SQL_TIMESTAMP       : ('SQL_TIMESTAMP',     lambda x: dttm_cvt(x),      SQL_C_CHAR,         create_buffer),
+SQL_VARCHAR         : ('SQL_VARCHAR',       lambda x: str(x),           SQL_C_CHAR,         create_buffer),
+SQL_LONGVARCHAR     : ('SQL_LONGVARCHAR',   lambda x: str(x),           SQL_C_CHAR,         create_buffer),
+SQL_BINARY          : ('SQL_BINARY',        lambda x: bytearray(x),     SQL_C_BINARY,       lambda :ctypes.c_buffer),
+SQL_VARBINARY       : ('SQL_VARBINARY',     lambda x: bytearray(x),     SQL_C_BINARY,       lambda :ctypes.c_buffer),
+SQL_LONGVARBINARY   : ('SQL_LONGVARBINARY', lambda x: bytearray(x),     SQL_C_BINARY,       lambda :ctypes.c_buffer),
+SQL_BIGINT          : ('SQL_BIGINT',        lambda x: long(x),          SQL_C_LONG,         lambda :ctypes.c_long),
+SQL_TINYINT         : ('SQL_TINYINT',       lambda x: long(x),          SQL_C_TINYINT,      lambda :ctypes.c_short),
+SQL_BIT             : ('SQL_BIT',           lambda x: bool(x),          SQL_C_BIT,          lambda :ctypes.c_short),
+SQL_WCHAR           : ('SQL_WCHAR',         lambda x: x,                SQL_C_WCHAR,        create_buffer_w),
+SQL_WVARCHAR        : ('SQL_WVARCHAR',      lambda x: x,                SQL_C_WCHAR,        create_buffer_w),
+SQL_WLONGVARCHAR    : ('SQL_WLONGVARCHAR',  lambda x: x,                SQL_C_WCHAR,        create_buffer_w),
+SQL_TYPE_DATE       : ('SQL_TYPE_DATE',     lambda x: dt_cvt(x),        SQL_C_CHAR,         create_buffer),
+SQL_TYPE_TIME       : ('SQL_TYPE_TIME',     lambda x: tm_cvt(x),        SQL_C_CHAR,         create_buffer),
+SQL_TYPE_TIMESTAMP  : ('SQL_TYPE_TIMESTAMP',lambda x: dttm_cvt(x),      SQL_C_CHAR,         create_buffer), 
+ \
 }
 
 
@@ -254,9 +262,9 @@ if not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
 
 
 
-# Set the environment's compatibil leve to ODBC 2.0
+# Set the environment's compatibil leve to ODBC 3.0
 
-ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2, 0)
+ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 0)
 if not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
     ctrl_err(SQL_HANDLE_ENV, shared_env_h, ret)
 
@@ -577,8 +585,6 @@ class Connection:
 
 
 
-
-
 def connect(connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
     od = Connection(connectString, autocommit, ansi, timeout, unicode_results)
     return od
@@ -613,8 +619,8 @@ if __name__ == "__main__":
         dsn_test =  'pg'
     user = 'tutti'
     
-    conn = connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ=D:\\人.mdb')
-    #conn = connect('DSN=PostgreSQL35W')
+    #conn = connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ=C:\\人.mdb')
+    conn = connect('DSN=PostgreSQL35W')
     #Dsn list
     #print conn.info
     #Get tables list
@@ -633,7 +639,7 @@ if __name__ == "__main__":
     cur.close()
     cur = conn.cursor()
     
-    cur.execute(u"""select * from data""".encode('mbcs'))
+    cur.execute(u"""select * from data where long_text is not null""".encode('mbcs'))
     print [(x[0], x[1]) for x in cur.description]
     #Get results
     import time
@@ -655,7 +661,7 @@ if __name__ == "__main__":
     
     cur.close()
     cur = conn.cursor()
-    cur.execute(u"delete from data ".encode('mbcs'))
+    #cur.execute(u"delete from data ".encode('mbcs'))
     
     cur.execute(u"""select * from data""".encode('mbcs'))
 
@@ -686,7 +692,7 @@ if __name__ == "__main__":
         for field in row:
             x = field
         i += 1
-        if i%2500 == 0:
+        if i % 2500 == 0:
             print (i)
     #print conn.FetchAll()
     #Close before exit
