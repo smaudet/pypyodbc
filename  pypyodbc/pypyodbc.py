@@ -11,7 +11,7 @@
 
 
 # The MIT License (MIT)
-# Copyright (c) 2012 Henry Zhou
+# Copyright (c) 2012 Henry Zhou <jiangwen365@gmail.com>
 # Copyright (C) 2004 Michele Petrazzo
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
