@@ -101,29 +101,29 @@ def create_1024_buffer():
 
 
 SqlTypes = {
-SQL_TYPE_NULL       : ('SQL_TYPE_NULL',     lambda x: None, SQL_C_CHAR), 
-SQL_CHAR            : ('SQL_CHAR',          lambda x: str(x),SQL_C_CHAR, create_1024_buffer),
+SQL_TYPE_NULL       : ('SQL_TYPE_NULL',     lambda x: None,             SQL_C_CHAR), 
+SQL_CHAR            : ('SQL_CHAR',          lambda x: str(x),           SQL_C_CHAR,         create_1024_buffer),
 SQL_NUMERIC         : ('SQL_NUMERIC',       lambda x: decimal.Decimal(x),SQL_C_NUMERIC),
 SQL_DECIMAL         : ('SQL_DECIMAL',       lambda x: decimal.Decimal(x),SQL_C_NUMERIC),
-SQL_INTEGER         : ('SQL_INTEGER',       lambda x: long(x),SQL_C_LONG, lambda :ctypes.c_long()),
-SQL_SMALLINT        : ('SQL_SMALLINT',      lambda x: long(x),SQL_C_SHORT, ctypes.c_short),
-SQL_FLOAT           : ('SQL_FLOAT',         lambda x: float(x),SQL_C_FLOAT, ctypes.c_float),
-SQL_REAL            : ('SQL_REAL',          lambda x: float(x),SQL_C_FLOAT, ctypes.c_float),
-SQL_DOUBLE          : ('SQL_DOUBLE',        lambda x: float(x),SQL_C_DOUBLE, ctypes.c_double),
-SQL_DATE            : ('SQL_DATE',          lambda x: dt_cvt(x), SQL_C_CHAR , create_1024_buffer),
-SQL_TIME            : ('SQL_TIME',          lambda x: tm_cvt(x),SQL_C_CHAR, create_1024_buffer),
-SQL_TIMESTAMP       : ('SQL_TIMESTAMP',     lambda x: dttm_cvt(x),SQL_C_CHAR,create_1024_buffer),
-SQL_VARCHAR         : ('SQL_VARCHAR',       lambda x: str(x),SQL_C_CHAR, create_1024_buffer),
-SQL_LONGVARCHAR     : ('SQL_LONGVARCHAR',   lambda x: unicode(x,'mbcs'),SQL_C_CHAR, create_1024_buffer),
-SQL_BINARY          : ('SQL_BINARY',        lambda x: bytearray(x), SQL_C_BINARY,SQL_C_BINARY, ctypes.c_buffer),
-SQL_VARBINARY       : ('SQL_VARBINARY',     lambda x: bytearray(x),SQL_C_BINARY,SQL_C_BINARY, ctypes.c_buffer),
-SQL_LONGVARBINARY   : ('SQL_LONGVARBINARY', lambda x: bytearray(x),SQL_C_BINARY, ctypes.c_buffer),
-SQL_BIGINT          : ('SQL_BIGINT',        lambda x: long(x),SQL_C_LONG, ctypes.c_long),
-SQL_TINYINT         : ('SQL_TINYINT',       lambda x: long(x),SQL_C_TINYINT, ctypes.c_short),
-SQL_BIT             : ('SQL_BIT',           lambda x: bool(x), SQL_C_BIT),
-SQL_WCHAR           : ('SQL_WCHAR',         lambda x: unicode(x,'mbcs'),SQL_C_WCHAR, create_1024_buffer_w),
-SQL_WVARCHAR        : ('SQL_WVARCHAR',      lambda x: x,SQL_C_WCHAR, create_1024_buffer_w),
-SQL_WLONGVARCHAR    :('SQL_WLONGVARCHAR',   lambda x: unicode(x,'mbcs'),SQL_C_WCHAR, create_1024_buffer_w) \
+SQL_INTEGER         : ('SQL_INTEGER',       lambda x: long(x),          SQL_C_LONG,         lambda :ctypes.c_long()),
+SQL_SMALLINT        : ('SQL_SMALLINT',      lambda x: long(x),          SQL_C_SHORT,        ctypes.c_short),
+SQL_FLOAT           : ('SQL_FLOAT',         lambda x: float(x),         SQL_C_FLOAT,        ctypes.c_float),
+SQL_REAL            : ('SQL_REAL',          lambda x: float(x),         SQL_C_FLOAT,        ctypes.c_float),
+SQL_DOUBLE          : ('SQL_DOUBLE',        lambda x: float(x),         SQL_C_DOUBLE,       ctypes.c_double),
+SQL_DATE            : ('SQL_DATE',          lambda x: dt_cvt(x),        SQL_C_CHAR ,        create_1024_buffer),
+SQL_TIME            : ('SQL_TIME',          lambda x: tm_cvt(x),        SQL_C_CHAR,         create_1024_buffer),
+SQL_TIMESTAMP       : ('SQL_TIMESTAMP',     lambda x: dttm_cvt(x),      SQL_C_CHAR,         create_1024_buffer),
+SQL_VARCHAR         : ('SQL_VARCHAR',       lambda x: str(x),           SQL_C_CHAR,         create_1024_buffer),
+SQL_LONGVARCHAR     : ('SQL_LONGVARCHAR',   lambda x: unicode(x,'mbcs'),SQL_C_CHAR,         create_1024_buffer),
+SQL_BINARY          : ('SQL_BINARY',        lambda x: bytearray(x),     SQL_C_BINARY,       ctypes.c_buffer),
+SQL_VARBINARY       : ('SQL_VARBINARY',     lambda x: bytearray(x),     SQL_C_BINARY,       ctypes.c_buffer),
+SQL_LONGVARBINARY   : ('SQL_LONGVARBINARY', lambda x: bytearray(x),     SQL_C_BINARY,       ctypes.c_buffer),
+SQL_BIGINT          : ('SQL_BIGINT',        lambda x: long(x),          SQL_C_LONG,         ctypes.c_long),
+SQL_TINYINT         : ('SQL_TINYINT',       lambda x: long(x),          SQL_C_TINYINT,      ctypes.c_short),
+SQL_BIT             : ('SQL_BIT',           lambda x: bool(x),          SQL_C_BIT),
+SQL_WCHAR           : ('SQL_WCHAR',         lambda x: unicode(x,'mbcs'),SQL_C_WCHAR,        create_1024_buffer_w),
+SQL_WVARCHAR        : ('SQL_WVARCHAR',      lambda x: x,                SQL_C_WCHAR,        create_1024_buffer_w),
+SQL_WLONGVARCHAR    :('SQL_WLONGVARCHAR',   lambda x: unicode(x,'mbcs'),SQL_C_WCHAR,        create_1024_buffer_w) \
 }
 
 
@@ -337,7 +337,7 @@ class Cursor:
             col_sql_type_code = self._ColType[col_num]
             try:
                 a_buffer = SqlTypes[col_sql_type_code][3]()
-                buff_len = ctypes.c_int()
+                buff_len = ctypes.c_long()
             except:
                 print SqlTypes[col_sql_type_code]
                 raise sys.exc_value
@@ -361,9 +361,7 @@ class Cursor:
                 ctrl_err(SQL_HANDLE_STMT, self.stmt_h, ret)
             i_col = 0
             for col in col_buffs:
-                
                 constructor = SqlTypes[self._ColType[i_col]][1]
-                
                 try:
                     if col[1].value == SQL_NULL_DATA:
                         row.append(None)
