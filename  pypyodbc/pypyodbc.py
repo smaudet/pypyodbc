@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-#coding=utf-8
+# -*- coding: utf-8 -*-
 
 # PyPyODBC is develped from RealPyODBC 0.1 beta released on 2004 December by Mr. Michele Petrazzo.
 # It's amazing that he implemented basic ODBC funcions with ctypes as earily as year 2004, when
