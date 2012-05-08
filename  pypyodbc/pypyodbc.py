@@ -3,12 +3,12 @@
 
 # Copyright (C) 2012 Henry Zhou <jiangwen365@gmail.com>
 
-# PyPyODBC is develped from RealPyODBC 0.1 beta released on 2004 December by Michele Petrazzo
+# PyPyODBC is develped from RealPyODBC 0.1 beta released on 2004 December by Mr. Michele Petrazzo.
 #
-# It's amazing that he implemented ODBC funcions with ctypes as earily as year 2004, when
-# python version was 2.4, and ctypes was still a 3rd party library and not a part of Python yet.
+# It's amazing that he implemented basic ODBC funcions with ctypes as earily as year 2004, when
+# python's version was still 2.4, and ctypes was a 3rd party library and not a part of Python yet.
 #
-# After almost 8 years, I was thhinking of the same idea and found and amazed by his codes.
+# After almost 8 years later, I was thinking of the same idea and found and got amazed by his codes.
 # Thanks Michele
 
 
