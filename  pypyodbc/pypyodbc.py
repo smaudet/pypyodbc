@@ -6,7 +6,7 @@
 # python's version was still 2.4, and ctypes was a 3rd party library and not a part of Python yet.
 # After almost 8 years later, I was thinking of the same idea and found and got amazed by his script.
 # So I took over his codes and started to add missing functions and also make it more compliant with mainstream
-# in used standards.
+# in used standards and habbits.
 # Thanks Michele.
 
 
