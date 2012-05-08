@@ -203,8 +203,8 @@ ODBC_API.SQLDataSources.restype     = ctypes.c_short
 ODBC_API.SQLFreeHandle.restype      = ctypes.c_short
 ODBC_API.SQLDisconnect.restype      = ctypes.c_short
 ODBC_API.SQLEndTran.restype         = ctypes.c_short
-ODBC_API.SQLPrepare.restype          = ctypes.c_short
-ODBC_API.SQLDescribeParam           = ctypes.c_short
+ODBC_API.SQLPrepare.restype         = ctypes.c_short
+ODBC_API.SQLDescribeParam.restype   = ctypes.c_short
 
 
 def ctrl_err(ht, h, val_ret):
