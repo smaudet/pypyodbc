@@ -1,24 +1,16 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# PyPyODBC is develped from RealPyODBC 0.1 beta released on 2004 December by Mr. Michele Petrazzo.
-# It's amazing that he implemented basic ODBC funcions with ctypes as earily as year 2004, when
-# python's version was still 2.4, and ctypes was a 3rd party library and not a part of Python yet.
-# After almost 8 years later, I was thinking of the same idea and found and got amazed by his script.
-# So I took over his codes and started to add missing functions and also make it more compliant with mainstream
-# in used standards and habbits.
-# Thanks Michele.
-
+# PyPyODBC is develped from RealPyODBC 0.1 beta released in 2004 by Michele Petrazzo. Thanks Michele.
 
 # The MIT License (MIT)
 # Copyright (c) 2012 Henry Zhou <jiangwen365@gmail.com>
 # Copyright (c) 2004 Michele Petrazzo
-
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
-# documentation files (the "Software"), to deal in the Software without restriction, including without 
-# limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the 
-# Software, and to permit persons to whom the Software is furnished to do so, subject to the following 
-# conditions:
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 #
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions 
 # of the Software.
@@ -32,13 +24,16 @@
 import sys, os, datetime, ctypes
 from decimal import Decimal
 
-library = "/usr/lib/libodbc.so"
-VERBOSE = 0
-    
-# The constants are defined in cpp header files
-# One source to get these sql.h sqlext.h sqltypes.h sqlucode.h 
-# files is from the mingw32-runtime_3.13-1_all.deb package
+DEBUGGING = 0
 
+# Set the library location on linux 
+library = "/usr/lib/libodbc.so"
+    
+# Below ODBC constants are defined to add the readablity of the codes and widely used in ODBC related programs
+# They are defined in header files: sql.h sqlext.h sqltypes.h sqlucode.h
+# You can get these files is from the mingw32-runtime_3.13-1_all.deb package
+
+SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2, SQL_OV_ODBC3 = 200, 2, 3
 SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
 SQL_INVALID_HANDLE = -2
 SQL_SUCCESS, SQL_SUCCESS_WITH_INFO = 0, 1
@@ -46,7 +41,6 @@ SQL_NO_DATA_FOUND = 100
 SQL_NULL_DATA = -1
 SQL_NULL_HANDLE, SQL_HANDLE_ENV, SQL_HANDLE_DBC, SQL_HANDLE_STMT = 0, 1, 2, 3
 SQL_HANDLE_DESCR = 4
-SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2, SQL_OV_ODBC3 = 200, 2, 3
 SQL_TABLE_NAMES = 3
 
 SQL_TYPE_NULL=0
@@ -107,15 +101,14 @@ def dt_cvt(x):
     if x == '': return None
     else: return datetime.datetime(int(x[0:4]),int(x[5:7]),int(x[8:10]))
 
-def create_buffer_w():
+def create_buffer_u():
     return ctypes.create_unicode_buffer(1024)
 
 def create_buffer():
     return ctypes.create_string_buffer(1024)
 
-# Below Datatype mappings Referenced the document at
+# Below Datatype mappings referenced the document at
 # http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.aseodbc/html/aseodbc/CACFDIGH.htm
-
 SqlTypes = { \
 SQL_TYPE_NULL       : ('SQL_TYPE_NULL',     lambda x: None,             SQL_C_CHAR,         create_buffer), 
 SQL_CHAR            : ('SQL_CHAR',          lambda x: str(x),           SQL_C_CHAR,         create_buffer),
@@ -137,19 +130,16 @@ SQL_LONGVARBINARY   : ('SQL_LONGVARBINARY', lambda x: bytearray(x),     SQL_C_BI
 SQL_BIGINT          : ('SQL_BIGINT',        lambda x: long(x),          SQL_C_LONG,         lambda :ctypes.c_long()),
 SQL_TINYINT         : ('SQL_TINYINT',       lambda x: long(x),          SQL_C_TINYINT,      lambda :ctypes.c_short()),
 SQL_BIT             : ('SQL_BIT',           lambda x: bool(x),          SQL_C_BIT,          lambda :ctypes.c_short()),
-SQL_WCHAR           : ('SQL_WCHAR',         lambda x: x,                SQL_C_WCHAR,        create_buffer_w),
-SQL_WVARCHAR        : ('SQL_WVARCHAR',      lambda x: x,                SQL_C_WCHAR,        create_buffer_w),
-SQL_WLONGVARCHAR    : ('SQL_WLONGVARCHAR',  lambda x: x,                SQL_C_WCHAR,        create_buffer_w),
+SQL_WCHAR           : ('SQL_WCHAR',         lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
+SQL_WVARCHAR        : ('SQL_WVARCHAR',      lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
+SQL_WLONGVARCHAR    : ('SQL_WLONGVARCHAR',  lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
 SQL_TYPE_DATE       : ('SQL_TYPE_DATE',     lambda x: dt_cvt(x),        SQL_C_CHAR,         create_buffer),
 SQL_TYPE_TIME       : ('SQL_TYPE_TIME',     lambda x: tm_cvt(x),        SQL_C_CHAR,         create_buffer),
 SQL_TYPE_TIMESTAMP  : ('SQL_TYPE_TIMESTAMP',lambda x: dttm_cvt(x),      SQL_C_CHAR,         create_buffer), 
- \
 }
 
 
-
-
-#Custom exceptions
+#Define exceptions
 class OdbcNoLibrary(Exception):
     def __init__(self, value):
         self.value = value
@@ -175,6 +165,7 @@ class OdbcGenericError(Exception):
 
 
 
+# Load the platform's ODBC functions via pytho ctypes module
 if sys.platform == 'win32':
     ODBC_API = ctypes.windll.odbc32
 else:
@@ -208,9 +199,8 @@ ODBC_API.SQLDescribeParam.restype   = ctypes.c_short
 
 
 def ctrl_err(ht, h, val_ret):
-    """Method for make a control of the errors
-    We get type of handle, handle, return value
-    Return a raise with a list"""
+    """Method for making a control of the errors
+    We get (type of handle, handle, return value), and raise with a list"""
     state = ctypes.create_string_buffer(5)
     NativeError = ctypes.c_int()
     Message = ctypes.create_string_buffer(1024*10)
@@ -231,11 +221,15 @@ def ctrl_err(ht, h, val_ret):
         elif ret == SQL_SUCCESS:
             err_list.append((state.value, Message.value, NativeError.value))
             number_errors += 1
+
             
-def validate_ret(handle_type, handle, ret):
-    if not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
+def validate(handle_type, handle, ret):
+    """ Validate return value, if not success, raise exceptions base on the handle type and value """
+    if ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
+        return
+    else:
         ctrl_err(handle_type, handle, ret)
-        
+
             
 
 def dataSources():
@@ -264,14 +258,13 @@ It's created so connections pooling can be shared under one environment
 '''
 shared_env_h = ctypes.c_int()
 ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, ctypes.byref(shared_env_h))
-validate_ret(SQL_HANDLE_ENV, shared_env_h, ret)
+validate(SQL_HANDLE_ENV, shared_env_h, ret)
 
 
 
-# Set the environment's compatibil leve to ODBC 3.0
-
+# Set the ODBC environment's compatibil leve to ODBC 3.0
 ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 0)
-validate_ret(SQL_HANDLE_ENV, shared_env_h, ret)
+validate(SQL_HANDLE_ENV, shared_env_h, ret)
 
 
 class Cursor:
@@ -283,7 +276,7 @@ class Cursor:
         self.stmt_h = ctypes.c_int()
         
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self._conx.dbc_h, ctypes.byref(self.stmt_h))
-        validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
             
         self.rowcount = None
         self.description = None
@@ -296,11 +289,11 @@ class Cursor:
                 return
             
             ret = ODBC_API.SQLPrepar(self.stmt_h, query_string, len(query_string))
-            validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+            validate(SQL_HANDLE_STMT, self.stmt_h, ret)
                 
             NumParams = ctypes.c_int()
             ret = ODBC_API.SQLNumParams(self.stmt_h, ctypes.byref(NumParams))
-            validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+            validate(SQL_HANDLE_STMT, self.stmt_h, ret)
             if NumParams.value > 0:
                 DataType = [ctypes.c_int()] * NumParams.value
                 ParamSize = ctypes.c_long() * NumParams.value
@@ -309,7 +302,7 @@ class Cursor:
                 for i in range(NumParams.value):
                     ret = ODBC_API.SQLDescribeParam(self.stmt_h, i + 1, ctypes.byref(DataType), ctypes.byref(ParamSize), \
                         ctypes.byref(DecimalDigits), ctypes.byref(Nullable))
-                    validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+                    validate(SQL_HANDLE_STMT, self.stmt_h, ret)
                     
         else:
             return self.Query(query_string)
@@ -318,7 +311,7 @@ class Cursor:
     def Query(self, q):
         """Make a query"""
         ret = ODBC_API.SQLExecDirect(self.stmt_h, q, len(q))
-        validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
             
         NOC = self.NumOfCols()
         "same as pyodbc's tuple (name, type_code, display_size, internal_size, precision, scale, null_ok)"
@@ -333,7 +326,7 @@ class Cursor:
         for col in range(1, NOC+1):
             ret = ODBC_API.SQLDescribeCol(self.stmt_h, col, ctypes.byref(CName), len(CName), ctypes.byref(Cname_ptr),\
                 ctypes.byref(Ctype_code),ctypes.byref(Csize),ctypes.byref(Cprecision), ctypes.byref(Cnull_ok))
-            validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+            validate(SQL_HANDLE_STMT, self.stmt_h, ret)
             if SqlTypes.has_key(Ctype_code.value):
                 ColDescr.append((CName.value, SqlTypes[Ctype_code.value][0],Csize.value,Cprecision.value,Cnull_ok.value))
             else:
@@ -347,7 +340,7 @@ class Cursor:
         """Get the number of rows"""
         NOR = ctypes.c_int()
         ret = ODBC_API.SQLRowCount(self.stmt_h, ctypes.byref(NOR))
-        validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
         self.rowcount = NOR.value
         return self.rowcount    
     
@@ -356,7 +349,7 @@ class Cursor:
         NOC = ctypes.c_int()
         
         ret = ODBC_API.SQLNumResultCols(self.stmt_h, ctypes.byref(NOC))
-        validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
         self.rowcount = NOC.value
         return NOC.value
     
@@ -384,7 +377,7 @@ class Cursor:
                 raise sys.exc_value
             ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SqlTypes[col_sql_type_code][2], \
 					ctypes.byref(a_buffer), 1024, ctypes.byref(buff_len))
-            validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+            validate(SQL_HANDLE_STMT, self.stmt_h, ret)
             col_buffs.append((a_buffer,buff_len))
             #self.__bind(col_num + 1, col_buffs[col_num], buff_id)
         return self.__fetch(col_buffs, num)
@@ -398,7 +391,7 @@ class Cursor:
             if ret == SQL_NO_DATA_FOUND:
                 break
             elif not ret == SQL_SUCCESS:
-                validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+                validate(SQL_HANDLE_STMT, self.stmt_h, ret)
             i_col = 0
             for col in col_buffs:
                 constructor = SqlTypes[self._ColType[i_col]][1]
@@ -424,7 +417,7 @@ class Cursor:
         
         ret = ODBC_API.SQLBindCol(self.stmt_h, col_num, SQL_C_CHAR, ctypes.byref(data), \
           len(data), ctypes.byref(buff_indicator))
-        validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
     
         
     def close(self):
@@ -435,12 +428,12 @@ class Cursor:
         
         '''
         ret = ODBC_API.SQLCloseCursor(self.stmt_h)
-        validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
         '''
         if self.stmt_h.value:
-            if VERBOSE: print 's'
+            if DEBUGGING: print 's'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_STMT, self.stmt_h)
-            validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+            validate(SQL_HANDLE_STMT, self.stmt_h, ret)
         
         return
     
@@ -451,7 +444,7 @@ class Cursor:
         ret = ODBC_API.SQLTables(self.stmt_h, None, 0, None, 0, None, 0, \
             ctypes.byref(t_type), len(t_type))
         if not ret == SQL_SUCCESS:
-            validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+            validate(SQL_HANDLE_STMT, self.stmt_h, ret)
         data = ctypes.create_string_buffer(1024)
         buff = ctypes.c_int()
         self.__bind(SQL_TABLE_NAMES, data, buff)
@@ -483,7 +476,7 @@ class Connection:
         # in the self.connect and self.ConnectByDSN method
         
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_DBC, shared_env_h, ctypes.byref(self.dbc_h))
-        validate_ret(SQL_HANDLE_DBC, self.dbc_h, ret)
+        validate(SQL_HANDLE_DBC, self.dbc_h, ret)
         
         self.connect(connectString, autocommit, ansi, timeout, unicode_results)
             
@@ -508,7 +501,7 @@ class Connection:
         
         if timeout != 0:
             ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_LOGIN_TIMEOUT, timeout, SQL_IS_UINTEGER);
-            validate_ret(SQL_HANDLE_DBC, self.dbc_h, ret)
+            validate(SQL_HANDLE_DBC, self.dbc_h, ret)
 
 
         # Create one connection with a connect string by calling SQLDriverConnect
@@ -517,7 +510,7 @@ class Connection:
         SQL_DRIVER_NOPROMPT = 0
         
         ret = ODBC_API.SQLDriverConnect(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
-        validate_ret(SQL_HANDLE_DBC, self.dbc_h, ret)
+        validate(SQL_HANDLE_DBC, self.dbc_h, ret)
         
         # Set the connection's attribute of "autocommit" 
         #
@@ -529,7 +522,7 @@ class Connection:
             ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_AUTOCOMMIT, SQL_AUTOCOMMIT_ON, SQL_IS_UINTEGER)
         else:
             ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER)
-        validate_ret(SQL_HANDLE_DBC, self.dbc_h, ret)
+        validate(SQL_HANDLE_DBC, self.dbc_h, ret)
         
         self.connected = 1
         
@@ -545,7 +538,7 @@ class Connection:
         pw = ctypes.create_string_buffer(passwd)
         
         ret = ODBC_API.SQLConnect(self.dbc_h, sn, len(sn), un, len(un), pw, len(pw))
-        validate_ret(SQL_HANDLE_DBC, self.dbc_h, ret)
+        validate(SQL_HANDLE_DBC, self.dbc_h, ret)
         # Intinalize self.stmt_h, which is the basis of a "cursor"
         self.__set_stmt_h()
         self.connected = 1
@@ -556,12 +549,12 @@ class Connection:
     def commit(self):
         SQL_COMMIT = 0
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_COMMIT);
-        validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
 
     def rollback(self):
         SQL_ROLLBACK = 1
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_ROLLBACK);
-        validate_ret(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
 
     def close(self):
         """Call me before exit, please"""
@@ -571,23 +564,23 @@ class Connection:
         if ht:
             if not h.value: return
             ret = ODBC_API.SQLFreeHandle(ht, h)
-            validate_ret(SQL_HANDLE_ENV, self.stmt_h, ret)
+            validate(SQL_HANDLE_ENV, self.stmt_h, ret)
             return
         
         if self.dbc_h.value:
             if self.connected:
-                if VERBOSE: print 'disc'
+                if DEBUGGING: print 'disc'
                 if not self.autocommit:
                     self.rollback()
                 ret = ODBC_API.SQLDisconnect(self.dbc_h)
-                validate_ret(SQL_HANDLE_DBC, self.dbc_h, ret)
-            if VERBOSE: print 'dbc'
+                validate(SQL_HANDLE_DBC, self.dbc_h, ret)
+            if DEBUGGING: print 'dbc'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_DBC, self.dbc_h)
-            validate_ret(SQL_HANDLE_DBC, self.dbc_h, ret)
+            validate(SQL_HANDLE_DBC, self.dbc_h, ret)
         if shared_env_h.value:
-            if VERBOSE: print 'env'
+            if DEBUGGING: print 'env'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_ENV, shared_env_h)
-            validate_ret(SQL_HANDLE_ENV, shared_env_h, ret)
+            validate(SQL_HANDLE_ENV, shared_env_h, ret)
 
 
 
@@ -625,8 +618,8 @@ if __name__ == "__main__":
         dsn_test =  'pg'
     user = 'tutti'
     
-    #conn = connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ=C:\\人.mdb')
-    conn = connect('DSN=PostgreSQL35W')
+    conn = connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ=D:\\人.mdb')
+    #conn = connect('DSN=PostgreSQL35W')
     #Dsn list
     #print conn.info
     #Get tables list
@@ -645,7 +638,7 @@ if __name__ == "__main__":
     cur.close()
     cur = conn.cursor()
     
-    cur.execute(u"""select * from data where long_text is not null""".encode('mbcs'))
+    cur.execute(u"""select * from data""".encode('mbcs'))
     print [(x[0], x[1]) for x in cur.description]
     #Get results
     import time
