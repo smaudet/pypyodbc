@@ -221,6 +221,7 @@ def ctrl_err(ht, h, val_ret):
         elif ret == SQL_SUCCESS:
             err_list.append((state.value, Message.value, NativeError.value))
             number_errors += 1
+    
 
             
 def validate(handle_type, handle, ret):
@@ -310,7 +311,8 @@ class Cursor:
         
     def Query(self, q):
         """Make a query"""
-        ret = ODBC_API.SQLExecDirect(self.stmt_h, q, len(q))
+        c_q = ctypes.create_string_buffer(q)
+        ret = ODBC_API.SQLExecDirect(self.stmt_h, q, len(c_q))
         validate(SQL_HANDLE_STMT, self.stmt_h, ret)
             
         NOC = self.NumOfCols()
@@ -549,12 +551,12 @@ class Connection:
     def commit(self):
         SQL_COMMIT = 0
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_COMMIT);
-        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.dbc_h, ret)
 
     def rollback(self):
         SQL_ROLLBACK = 1
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_ROLLBACK);
-        validate(SQL_HANDLE_STMT, self.stmt_h, ret)
+        validate(SQL_HANDLE_STMT, self.dbc_h, ret)
 
     def close(self):
         """Call me before exit, please"""

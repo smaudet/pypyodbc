@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, os, os.path
+import sys, os
 import pypyodbc
 import ctypes
 
@@ -7,9 +7,9 @@ import ctypes
 def cur_file_dir():
     return os.path.dirname(os.path.realpath(sys.argv[0]))
 
-c_Path = ctypes.create_string_buffer(u"CREATE_DB=.\\人.mdb General\0".encode('mbcs'))
+c_Path = ctypes.create_string_buffer(u"CREATE_DB=.\\自由.mdb General\0".encode('mbcs'))
 ODBC_ADD_SYS_DSN = 1
-#ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
+ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
 
 
 def u8_enc(v, force_str = False):
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
 
     
-    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\人.mdb')
+    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\自由.mdb')
     #conn = connect('DSN=PostgreSQL35W')
     #Dsn list
     #print conn.info
@@ -56,19 +56,20 @@ if __name__ == "__main__":
     #else: t = "ttt"
     
     #cur.close()
-    cur = conn.cursor()
+    #cur = conn.cursor()
     #Get fields on the table
     #cols = cur.columns(t)
     #print cols
     #Make a query
     
-    cur.close()
+    #cur.close()
     cur = conn.cursor()
     try:
-        cur.execute(u""" DROP TABLE data; """)
+        cur.execute('Drop table data;')
     except:
         pass
-    cur.execute(u"""CREATE TABLE  pp(pp varchar(100));""")
+    cur.execute("""Create table data (pid int,pname varchar(30),price float, Num numeric)""")
+    cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55)".encode('mbcs'))
     cur.execute(u"""select * from data""".encode('mbcs'))
     print [(x[0], x[1]) for x in cur.description]
     #Get results
@@ -98,10 +99,13 @@ if __name__ == "__main__":
     #Get results
     
     for row in cur.fetchmany(8):
-            print (u' '.join([field for field in row]).encode('mbcs'))
+        for field in row:
+            print field,
+            print '|',
+        print ''
     
     cur.close
-    conn.rollback()
+    #conn.rollback()
     cur = conn.cursor()
 
     cur.execute('update data set Num = '+str(time.time()))
