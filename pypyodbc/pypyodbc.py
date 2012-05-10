@@ -29,8 +29,8 @@ DEBUGGING = 0
 # Set the library location on linux 
 library = "/usr/lib/libodbc.so"
     
-# Below ODBC constants are defined to add the readablity of the codes and widely used in ODBC related programs
-# They are defined in header files: sql.h sqlext.h sqltypes.h sqlucode.h
+# Below ODBC constants are defined and widely used in ODBC related programs and documents
+# They are defined in cpp header files: sql.h sqlext.h sqltypes.h sqlucode.h
 # You can get these files is from the mingw32-runtime_3.13-1_all.deb package
 
 SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2, SQL_OV_ODBC3 = 200, 2, 3
@@ -165,7 +165,7 @@ class OdbcGenericError(Exception):
 
 
 
-# Load the platform's ODBC functions via pytho ctypes module
+# Get the references of the platform's ODBC functions via ctypes 
 if sys.platform == 'win32':
     ODBC_API = ctypes.windll.odbc32
 else:
@@ -180,6 +180,7 @@ ODBC_API.SQLGetDiagRec.restype      = ctypes.c_short
 ODBC_API.SQLAllocHandle.restype     = ctypes.c_short
 ODBC_API.SQLSetEnvAttr.restype      = ctypes.c_short
 ODBC_API.SQLExecDirect.restype      = ctypes.c_short
+ODBC_API.SQLExecDirectW.restype      = ctypes.c_short
 ODBC_API.SQLRowCount.restype        = ctypes.c_short
 ODBC_API.SQLNumResultCols.restype   = ctypes.c_short
 ODBC_API.SQLFetch.restype           = ctypes.c_short
@@ -261,8 +262,6 @@ shared_env_h = ctypes.c_int()
 ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, ctypes.byref(shared_env_h))
 validate(SQL_HANDLE_ENV, shared_env_h, ret)
 
-
-
 # Set the ODBC environment's compatibil leve to ODBC 3.0
 ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 0)
 validate(SQL_HANDLE_ENV, shared_env_h, ret)
@@ -311,8 +310,12 @@ class Cursor:
         
     def Query(self, q):
         """Make a query"""
-        c_q = ctypes.create_string_buffer(q)
-        ret = ODBC_API.SQLExecDirect(self.stmt_h, q, len(c_q))
+        if type(q) == unicode:
+            c_q = ctypes.create_unicode_buffer(q)
+            ret = ODBC_API.SQLExecDirectW(self.stmt_h, q, len(c_q))
+        else:
+            c_q = ctypes.create_string_buffer(q)
+            ret = ODBC_API.SQLExecDirect(self.stmt_h, q, len(c_q))
         validate(SQL_HANDLE_STMT, self.stmt_h, ret)
             
         NOC = self.NumOfCols()
@@ -370,15 +373,14 @@ class Cursor:
         col_buffs = []
         
         for col_num in range(NOC):
-            col_sql_type_code = self._ColType[col_num]
+            col_sql_type = self._ColType[col_num]
             try:
-                a_buffer = SqlTypes[col_sql_type_code][3]()
+                a_buffer = SqlTypes[col_sql_type][3]()
                 buff_len = ctypes.c_long()
             except:
-                print SqlTypes[col_sql_type_code]
+                print SqlTypes[col_sql_type]
                 raise sys.exc_value
-            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SqlTypes[col_sql_type_code][2], \
-					ctypes.byref(a_buffer), 1024, ctypes.byref(buff_len))
+            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SqlTypes[col_sql_type][2], ctypes.byref(a_buffer), 1024, ctypes.byref(buff_len))
             validate(SQL_HANDLE_STMT, self.stmt_h, ret)
             col_buffs.append((a_buffer,buff_len))
             #self.__bind(col_num + 1, col_buffs[col_num], buff_id)
