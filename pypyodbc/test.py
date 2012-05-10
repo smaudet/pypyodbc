@@ -45,8 +45,8 @@ if __name__ == "__main__":
 
 
     
-    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\自由.mdb')
-    #conn = connect('DSN=PostgreSQL35W')
+    #conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\自由.mdb')
+    conn = pypyodbc.connect('DSN=PostgreSQL35W')
     #Dsn list
     #print conn.info
     #Get tables list
@@ -68,8 +68,16 @@ if __name__ == "__main__":
         cur.execute('Drop table data;')
     except:
         pass
-    cur.execute("""Create table data (pid int,pname varchar(30),price float, Num numeric)""")
-    cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55)".encode('mbcs'))
+    cur.execute(u"""Create table data (
+    pid int,
+    pname varchar(30),
+    price float, 
+    Num numeric)""")
+    
+    cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55)")
+    cur.execute("insert into data values (2,?,22,33)", ( u'X哦X'.encode('mbcs'),))
+    conn.commit()
+
     cur.execute(u"""select * from data""".encode('mbcs'))
     print [(x[0], x[1]) for x in cur.description]
     #Get results
@@ -100,7 +108,10 @@ if __name__ == "__main__":
     
     for row in cur.fetchmany(8):
         for field in row:
-            print field,
+            if isinstance(field, unicode):
+                print field.encode('mbcs'),
+            else:
+                print field,
             print '|',
         print ''
     
