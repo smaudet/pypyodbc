@@ -24,7 +24,7 @@
 import sys, os, datetime, ctypes
 from decimal import Decimal
 
-DEBUGGING = 1
+DEBUGGING = 0
 
 # Set the library location on linux 
 library = "/usr/lib/libodbc.so"
@@ -196,11 +196,11 @@ ODBC_API.SQLFreeHandle.restype      = ctypes.c_short
 ODBC_API.SQLDisconnect.restype      = ctypes.c_short
 ODBC_API.SQLEndTran.restype         = ctypes.c_short
 ODBC_API.SQLPrepare.restype         = ctypes.c_short
+ODBC_API.SQLPrepareW.restype        = ctypes.c_short
 ODBC_API.SQLDescribeParam.restype   = ctypes.c_short
 ODBC_API.SQLNumParams.restype       = ctypes.c_short
 ODBC_API.SQLBindParameter.restype   = ctypes.c_short
 ODBC_API.SQLExecute.restype         = ctypes.c_short
-
 
 def ctrl_err(ht, h, val_ret):
     """Classify type of ODBC error from (type of handle, handle, return value)
@@ -292,7 +292,10 @@ class Cursor:
             if not type(params) in (tuple, list):
                 return
             if query_string != self.last_query:
-                ret = ODBC_API.SQLPrepare(self.stmt_h, query_string, len(query_string))
+                if type(query_string) == unicode:
+                    ret = ODBC_API.SQLPrepareW(self.stmt_h, query_string, len(query_string))
+                else:
+                    ret = ODBC_API.SQLPrepare(self.stmt_h, query_string, len(query_string))
                 validate(ret, SQL_HANDLE_STMT, self.stmt_h)
                 NumParams = ctypes.c_int()
                 ret = ODBC_API.SQLNumParams(self.stmt_h, ctypes.byref(NumParams))
@@ -318,7 +321,7 @@ class Cursor:
                         BufferLen = ctypes.c_long(1024)
                         LenOrInd = ctypes.c_long()
                         parm_buf.append((ParameterValue,LenOrInd))
-                        ret = ODBC_API.SQLBindParameter(self.stmt_h, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_WVARCHAR, 1024,\
+                        ret = ODBC_API.SQLBindParameter(self.stmt_h, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_WVARCHAR, 255,\
                                  10, ctypes.byref(parm_buf[-1][0]), ctypes.byref(BufferLen),ctypes.byref(parm_buf[-1][1]))
                         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
                         
@@ -332,18 +335,12 @@ class Cursor:
             ret = ODBC_API.SQLExecute(self.stmt_h)
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
         else:
-            return self.Query(query_string)
-        
-        
-    def Query(self, q):
-        """Make a query"""
-        if type(q) == unicode:
-            c_q = ctypes.create_unicode_buffer(q)
-            ret = ODBC_API.SQLExecDirectW(self.stmt_h, q, len(c_q))
-        else:
-            c_q = ctypes.create_string_buffer(q)
-            ret = ODBC_API.SQLExecDirect(self.stmt_h, q, len(c_q))
-        validate(ret, SQL_HANDLE_STMT, self.stmt_h)
+            """Make a query"""
+            if type(query_string) == unicode:
+                ret = ODBC_API.SQLExecDirectW(self.stmt_h, query_string, len(query_string))
+            else:
+                ret = ODBC_API.SQLExecDirect(self.stmt_h, query_string, len(query_string))
+            validate(ret, SQL_HANDLE_STMT, self.stmt_h)
             
         NOC = self.NumOfCols()
         "same as pyodbc's tuple (name, type_code, display_size, internal_size, precision, scale, null_ok)"
@@ -362,7 +359,7 @@ class Cursor:
             ColDescr.append((CName.value, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Csize.value,Cprecision.value,Cnull_ok.value))
             self._ColType.append(Ctype_code.value)
         self.description = ColDescr
-        return self
+        return (self)
 
         
     def NumOfRows(self):

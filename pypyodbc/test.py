@@ -39,14 +39,9 @@ if __name__ == "__main__":
         dsn_test =  'pg'
     user = 'tutti'
 
-
-    
-
-
-
-    
-    #conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\自由.mdb')
-    conn = pypyodbc.connect('DSN=PostgreSQL35W')
+    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\自由.mdb')
+    #conn = pypyodbc.connect('DSN=PostgreSQL35W')
+    #conn = pypyodbc.connect('DSN=SQLite3')
     #Dsn list
     #print conn.info
     #Get tables list
@@ -68,33 +63,29 @@ if __name__ == "__main__":
         cur.execute('Drop table data;')
     except:
         pass
-    cur.execute(u"""Create table data (
-    pid int,
-    pname varchar(30),
-    price float, 
-    Num numeric)""")
-    
+    cur.execute(u"create table data (编号 integer, 产品名 varchar, 价格 float, 数量 numeric)")
+    import time
     cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55)")
-    cur.execute("insert into data values (2,?,22,33)", ( u'X哦X'.encode('mbcs'),))
+    cur.execute("insert into data values (?,?,?,?)", (2, u'X哦X'.encode('mbcs'),88.11119, 888.998798))
+    print time.time()
+    for i in xrange(3,10000):
+        cur.execute("insert into data values (?,?,?,?)", (i, u'X哦X'.encode('mbcs'),88.11119+i, 888.998798-i))
+    print time.time()
     conn.commit()
+    print time.time()
 
     cur.execute(u"""select * from data""".encode('mbcs'))
     print [(x[0], x[1]) for x in cur.description]
     #Get results
-    import time
     
-    for row in cur.fetchmany(15):
+    for row in cur.fetchmany(5):
         for field in row:
             print type(field),
-            
             if isinstance(field, unicode):
-                print (field.encode('mbcs'))
+                print field.encode('mbcs'),
             else:
-                print (field)
-            time.sleep(0.2)
-            
-
-    
+                print field,
+        print ('')
     
     print (len(cur.fetchall()))
     
@@ -106,7 +97,7 @@ if __name__ == "__main__":
 
     #Get results
     
-    for row in cur.fetchmany(8):
+    for row in cur.fetchmany(3):
         for field in row:
             if isinstance(field, unicode):
                 print field.encode('mbcs'),
@@ -118,8 +109,10 @@ if __name__ == "__main__":
     cur.close
     #conn.rollback()
     cur = conn.cursor()
-
-    cur.execute('update data set Num = '+str(time.time()))
+    print time.time()
+    cur.execute(u'update data set 数量 = ? where 数量 > 0 ',(str(time.time()),)).NumOfRows()
+    print cur.rowcount
+    print time.time()
     conn.commit()
     for row in cur.execute(u"""select * from data""".encode('mbcs')).fetchone():
         for field in row:
@@ -137,8 +130,8 @@ if __name__ == "__main__":
         for field in row:
             x = field
         i += 1
-        if i % 2500 == 0:
-            print (i)
+        if i % 5000 == 0:
+            print i,
     #print conn.FetchAll()
     #Close before exit
     cur.close()
