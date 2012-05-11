@@ -31,7 +31,7 @@ library = "/usr/lib/libodbc.so"
     
 # Below ODBC constants are defined and widely used in ODBC related programs and documents
 # They are defined in cpp header files: sql.h sqlext.h sqltypes.h sqlucode.h
-# You can get these files is from the mingw32-runtime_3.13-1_all.deb package
+# You can get these files from the mingw32-runtime_3.13-1_all.deb package
 
 SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2, SQL_OV_ODBC3 = 200, 2, 3
 SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
@@ -44,8 +44,6 @@ SQL_HANDLE_DESCR = 4
 SQL_TABLE_NAMES = 3
 SQL_PARAM_INPUT = 1
 SQL_PARAM_INPUT_OUTPUT = 2
-
-
 
 SQL_TYPE_NULL = 0
 SQL_CHAR = 1
@@ -167,8 +165,6 @@ class OdbcGenericError(Exception):
 
 
 
-
-
 # Get the references of the platform's ODBC functions via ctypes 
 if sys.platform == 'win32':
     ODBC_API = ctypes.windll.odbc32
@@ -207,8 +203,8 @@ ODBC_API.SQLExecute.restype         = ctypes.c_short
 
 
 def ctrl_err(ht, h, val_ret):
-    """Method for making a control of the errors
-    We get (type of handle, handle, return value), and raise with a list"""
+    """Classify type of ODBC error from (type of handle, handle, return value)
+    , and raise with a list"""
     state = ctypes.create_string_buffer(5)
     NativeError = ctypes.c_int()
     Message = ctypes.create_string_buffer(1024*10)
@@ -233,7 +229,7 @@ def ctrl_err(ht, h, val_ret):
 
             
 def validate(ret, handle_type, handle):
-    """ Validate return value, if not success, raise exceptions base on the handle type and value """
+    """ Validate return value, if not success, raise exceptions based on the handle """
     if ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
         return
     else:
@@ -276,8 +272,8 @@ validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
 class Cursor:
     def __init__(self, conx):
-        """ Initialize self.stmt_h, which is an handle of a statement
-        A statement is actually the basis of a "cursor"
+        """ Initialize self.stmt_h, which is the handle of a statement
+        A statement is actually the basis of a python"cursor" object
         """
         self._conx = conx
         self.stmt_h = ctypes.c_int()
@@ -294,7 +290,6 @@ class Cursor:
     def execute(self, query_string, params = None):
         if params:
             if not type(params) in (tuple, list):
-                if DEBUGGING: print ('DEBUGGING: ' + str(type(params)))
                 return
             if query_string != self.last_query:
                 ret = ODBC_API.SQLPrepare(self.stmt_h, query_string, len(query_string))
@@ -509,7 +504,7 @@ class Connection:
         # in the self.connect and self.ConnectByDSN method
         
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_DBC, shared_env_h, ctypes.byref(self.dbc_h))
-        validate(ret, SQL_HANDLE_DBC, self. dbc_h)
+        validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
         self.connect(connectString, autocommit, ansi, timeout, unicode_results)
             
@@ -534,7 +529,7 @@ class Connection:
         
         if timeout != 0:
             ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_LOGIN_TIMEOUT, timeout, SQL_IS_UINTEGER);
-            validate(ret, SQL_HANDLE_DBC, self. dbc_h)
+            validate(ret, SQL_HANDLE_DBC, self.dbc_h)
 
 
         # Create one connection with a connect string by calling SQLDriverConnect
@@ -543,7 +538,7 @@ class Connection:
         SQL_DRIVER_NOPROMPT = 0
         
         ret = ODBC_API.SQLDriverConnect(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
-        validate(ret, SQL_HANDLE_DBC, self. dbc_h)
+        validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
         # Set the connection's attribute of "autocommit" 
         #
@@ -553,7 +548,7 @@ class Connection:
         self.autocommit = autocommit
         
         ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_AUTOCOMMIT, self.autocommit and SQL_AUTOCOMMIT_ON or SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER)
-        validate(ret, SQL_HANDLE_DBC, self. dbc_h)
+        validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
         self.connected = 1
         
@@ -569,7 +564,7 @@ class Connection:
         pw = ctypes.create_string_buffer(passwd)
         
         ret = ODBC_API.SQLConnect(self.dbc_h, sn, len(sn), un, len(un), pw, len(pw))
-        validate(ret, SQL_HANDLE_DBC, self. dbc_h)
+        validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         # Intinalize self.stmt_h, which is the basis of a "cursor"
         self.__set_stmt_h()
         self.connected = 1
@@ -604,10 +599,10 @@ class Connection:
                 if not self.autocommit:
                     self.rollback()
                 ret = ODBC_API.SQLDisconnect(self.dbc_h)
-                validate(ret, SQL_HANDLE_DBC, self. dbc_h)
+                validate(ret, SQL_HANDLE_DBC, self.dbc_h)
             if DEBUGGING: print 'dbc'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_DBC, self.dbc_h)
-            validate(ret, SQL_HANDLE_DBC, self. dbc_h)
+            validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         if shared_env_h.value:
             if DEBUGGING: print 'env'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_ENV, shared_env_h)
