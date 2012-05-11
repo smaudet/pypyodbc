@@ -321,7 +321,7 @@ class Cursor:
                         BufferLen = ctypes.c_long(1024)
                         LenOrInd = ctypes.c_long()
                         parm_buf.append((ParameterValue,LenOrInd))
-                        ret = ODBC_API.SQLBindParameter(self.stmt_h, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_WVARCHAR, 255,\
+                        ret = ODBC_API.SQLBindParameter(self.stmt_h, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 255,\
                                  10, ctypes.byref(parm_buf[-1][0]), ctypes.byref(BufferLen),ctypes.byref(parm_buf[-1][1]))
                         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
                         

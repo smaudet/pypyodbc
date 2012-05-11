@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\自由.mdb')
     #conn = pypyodbc.connect('DSN=PostgreSQL35W')
-    #conn = pypyodbc.connect('DSN=SQLite3')
+    #conn = pypyodbc.connect('DSN=MySQL')
     #Dsn list
     #print conn.info
     #Get tables list
@@ -63,13 +63,15 @@ if __name__ == "__main__":
         cur.execute('Drop table data;')
     except:
         pass
-    cur.execute(u"create table data (编号 integer, 产品名 varchar, 价格 float, 数量 numeric)")
+    cur.execute(u"create table data (编号 integer, 产品名 varchar(200), 价格 float, 数量 numeric, 日期 datetime)")
     import time
-    cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55)")
+    cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21')")
+    '''
     cur.execute("insert into data values (?,?,?,?)", (2, u'X哦X'.encode('mbcs'),88.11119, 888.998798))
     print time.time()
     for i in xrange(3,10000):
         cur.execute("insert into data values (?,?,?,?)", (i, u'X哦X'.encode('mbcs'),88.11119+i, 888.998798-i))
+    '''
     print time.time()
     conn.commit()
     print time.time()
