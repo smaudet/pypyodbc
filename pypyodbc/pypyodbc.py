@@ -454,10 +454,10 @@ class Cursor:
     def __CloseCursor(self):
         """ Call SQLCloseCursor API to free the statement handle"""
         
-        '''
+        
         ret = ODBC_API.SQLCloseCursor(self.stmt_h)
         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
-        '''
+        
         if self.stmt_h.value:
             if DEBUGGING: print 's'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_STMT, self.stmt_h)
@@ -603,11 +603,12 @@ class Connection:
             if DEBUGGING: print 'dbc'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_DBC, self.dbc_h)
             validate(ret, SQL_HANDLE_DBC, self.dbc_h)
+        '''
         if shared_env_h.value:
             if DEBUGGING: print 'env'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_ENV, shared_env_h)
             validate(ret, SQL_HANDLE_ENV, shared_env_h)
-
+        '''
 
 
 def connect(connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
