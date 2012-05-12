@@ -24,7 +24,7 @@
 import sys, os, datetime, ctypes
 from decimal import Decimal
 
-DEBUGGING = 0
+DEBUGGING = 1
 
 # Set the library location on linux 
 library = "/usr/lib/libodbc.so"
@@ -176,31 +176,19 @@ else:
     except:
         raise OdbcLibraryError, 'Error while loading %s' % library
 
-ODBC_API.SQLGetDiagRec.restype      = ctypes.c_short
-ODBC_API.SQLAllocHandle.restype     = ctypes.c_short
-ODBC_API.SQLSetEnvAttr.restype      = ctypes.c_short
-ODBC_API.SQLExecDirect.restype      = ctypes.c_short
-ODBC_API.SQLExecDirectW.restype     = ctypes.c_short
-ODBC_API.SQLRowCount.restype        = ctypes.c_short
-ODBC_API.SQLNumResultCols.restype   = ctypes.c_short
-ODBC_API.SQLFetch.restype           = ctypes.c_short
-ODBC_API.SQLBindCol.restype         = ctypes.c_short
-ODBC_API.SQLCloseCursor.restype     = ctypes.c_short
-ODBC_API.SQLSetConnectAttr.restype  = ctypes.c_short
-ODBC_API.SQLDriverConnect.restype   = ctypes.c_short
-ODBC_API.SQLConnect.restype         = ctypes.c_short
-ODBC_API.SQLTables.restype          = ctypes.c_short
-ODBC_API.SQLDescribeCol.restype     = ctypes.c_short
-ODBC_API.SQLDataSources.restype     = ctypes.c_short
-ODBC_API.SQLFreeHandle.restype      = ctypes.c_short
-ODBC_API.SQLDisconnect.restype      = ctypes.c_short
-ODBC_API.SQLEndTran.restype         = ctypes.c_short
-ODBC_API.SQLPrepare.restype         = ctypes.c_short
-ODBC_API.SQLPrepareW.restype        = ctypes.c_short
-ODBC_API.SQLDescribeParam.restype   = ctypes.c_short
-ODBC_API.SQLNumParams.restype       = ctypes.c_short
-ODBC_API.SQLBindParameter.restype   = ctypes.c_short
-ODBC_API.SQLExecute.restype         = ctypes.c_short
+# Set the return type for ODBC functions with ret result.
+funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute",
+"SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount","SQLNumResultCols",
+"SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLConnect","SQLTables","SQLDescribeCol",
+"SQLDataSources","SQLFreeHandle","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW","SQLDescribeParam"]
+for func_name in funcs_with_ret:
+    getattr(ODBC_API,func_name).restype = ctypes.c_short
+
+# Set the alias for the ctypes get reference function for beter code readbility.
+Refer = ctypes.byref
+
+
+
 
 def ctrl_err(ht, h, val_ret):
     """Classify type of ODBC error from (type of handle, handle, return value)
@@ -214,7 +202,7 @@ def ctrl_err(ht, h, val_ret):
     
     while 1:
         ret = ODBC_API.SQLGetDiagRec(ht, h, number_errors, state, \
-            NativeError, Message, len(Message), ctypes.byref(Buffer_len))
+            NativeError, Message, len(Message), Refer(Buffer_len))
         if ret == SQL_NO_DATA_FOUND:
             #No more data, I can raise
             raise OdbcGenericError, err_list
@@ -225,8 +213,6 @@ def ctrl_err(ht, h, val_ret):
         elif ret == SQL_SUCCESS:
             err_list.append((state.value, Message.value, NativeError.value))
             number_errors += 1
-    
-
             
 def validate(ret, handle_type, handle):
     """ Validate return value, if not success, raise exceptions based on the handle """
@@ -247,7 +233,7 @@ def dataSources():
     
     while 1:
         ret = ODBC_API.SQLDataSources(shared_env_h, SQL_FETCH_NEXT, \
-            dsn, len(dsn), ctypes.byref(dsn_len), desc, len(desc), ctypes.byref(desc_len))
+            dsn, len(dsn), Refer(dsn_len), desc, len(desc), Refer(desc_len))
         if ret == SQL_NO_DATA_FOUND:
             break
         elif not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
@@ -259,10 +245,11 @@ def dataSources():
 
 ''' 
 Allocate an environment by initializing the handle shared_env_h
-It's created so connections pooling can be shared under one environment
+It's created so connections can be created under it
+connections pooling can be shared under one environment
 '''
 shared_env_h = ctypes.c_int()
-ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, ctypes.byref(shared_env_h))
+ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, Refer(shared_env_h))
 validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
 # Set the ODBC environment's compatibil leve to ODBC 3.0
@@ -276,61 +263,81 @@ class Cursor:
         A statement is actually the basis of a python"cursor" object
         """
         self._conx = conx
-        self.stmt_h = ctypes.c_int()
-        
-        ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self._conx.dbc_h, ctypes.byref(self.stmt_h))
-        validate(ret, SQL_HANDLE_STMT, self.stmt_h)
         self.last_query = None
-        self.last_parm_buf = None
+        self.last_ParamBufferList = None
         self.rowcount = None
         self.description = None
         self.autocommit = None
         self._ColType = None
+        self.stmt_h = ctypes.c_int()
+        ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self._conx.dbc_h, Refer(self.stmt_h))
+        validate(ret, SQL_HANDLE_STMT, self.stmt_h)
     
     def execute(self, query_string, params = None):
-        if params:
+        """ Execute the query string, with optional parameters.
+        If parameters are provided, the query would be first prepared, then executed with parameters;
+        If parameters are not provided, only th query sting, it would be executed directly 
+        """
+        if params != None:
+            # If parameters are provided, then first prepare the query 
+            # and then executed with parameters
             if not type(params) in (tuple, list):
-                return
+                raise Exception
             if query_string != self.last_query:
                 if type(query_string) == unicode:
                     ret = ODBC_API.SQLPrepareW(self.stmt_h, query_string, len(query_string))
                 else:
                     ret = ODBC_API.SQLPrepare(self.stmt_h, query_string, len(query_string))
                 validate(ret, SQL_HANDLE_STMT, self.stmt_h)
+                
+                # Get the number of query parameters judged by database.
                 NumParams = ctypes.c_int()
-                ret = ODBC_API.SQLNumParams(self.stmt_h, ctypes.byref(NumParams))
+                ret = ODBC_API.SQLNumParams(self.stmt_h, Refer(NumParams))
                 validate(ret, SQL_HANDLE_STMT, self.stmt_h)
                 if DEBUGGING:
-                    print ('DEBUGGING: ' + str(NumParams.value))
-                
+                    print ('DEBUGGING: Parameter numbers:' + str(NumParams.value))
                 
                 if NumParams.value > 0:
-
-                    DataType = ctypes.c_int()
-                    ParamSize = ctypes.c_long()
-                    DecimalDigits = ctypes.c_short()
-                    Nullable = ctypes.c_bool()
-                    parm_buf = []
+                    # Every parameter needs to be binded to a buffer
+                    ParamBufferList = []
                     for i in range(NumParams.value):
                         '''
-                        ret = ODBC_API.SQLDescribeParam(self.stmt_h, i + 1, ctypes.byref(DataType), ctypes.byref(ParamSize), \
-                            ctypes.byref(DecimalDigits), ctypes.byref(Nullable))
+                        DataType = ctypes.c_int()
+                        ParamSize = ctypes.c_long()
+                        DecimalDigits = ctypes.c_short()
+                        Nullable = ctypes.c_bool()                        
+                        ret = ODBC_API.SQLDescribeParam(self.stmt_h, i + 1, Refer(DataType), Refer(ParamSize), \
+                            Refer(DecimalDigits), Refer(Nullable))
                         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
                         '''
-                        ParameterValue = ctypes.create_string_buffer(1024)
+                        ParameterBuffer = ctypes.create_string_buffer(1024)
                         BufferLen = ctypes.c_long(1024)
-                        LenOrInd = ctypes.c_long()
-                        parm_buf.append((ParameterValue,LenOrInd))
+                        LenOrIndBuf = ctypes.c_long()
                         ret = ODBC_API.SQLBindParameter(self.stmt_h, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 255,\
-                                 10, ctypes.byref(parm_buf[-1][0]), ctypes.byref(BufferLen),ctypes.byref(parm_buf[-1][1]))
+                                 0, Refer(ParameterBuffer), Refer(BufferLen),Refer(LenOrIndBuf))
                         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
+                        # Append the value buffer and the lenth buffer to the array
+                        ParamBufferList.append((ParameterBuffer,LenOrIndBuf))
                         
                 self.last_query = query_string
-                self.last_parm_buf = parm_buf
-            if len(params) == len(self.last_parm_buf):
+                self.last_ParamBufferList = ParamBufferList
+                
+            if len(params) == len(self.last_ParamBufferList):
                 for i in range(len(params)):
-                    self.last_parm_buf[i][0].value = str(params[i])
-                    self.last_parm_buf[i][1].value = len(str(params[i]))
+                    c_char_buf = ''
+                    if type(params[i]) == datetime.datetime:
+                        c_char_buf = params[i].isoformat().replace('T',' ')[:19]
+                    elif type(params[i]) == datetime.date:
+                        c_char_buf = params[i].isoformat()
+                    elif type(params[i]) == datetime.time:
+                        c_char_buf = params[i].isoformat()[0:8]
+                    else:
+                        c_char_buf = str(params[i])
+                    self.last_ParamBufferList[i][0].value = c_char_buf
+                    self.last_ParamBufferList[i][1].value = len(c_char_buf)
+                    #print c_char_buf
+            else:
+                raise Exception
     
             ret = ODBC_API.SQLExecute(self.stmt_h)
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
@@ -353,19 +360,20 @@ class Cursor:
         ColDescr = []
         self._ColType = []
         for col in range(1, NOC+1):
-            ret = ODBC_API.SQLDescribeCol(self.stmt_h, col, ctypes.byref(CName), len(CName), ctypes.byref(Cname_ptr),\
-                ctypes.byref(Ctype_code),ctypes.byref(Csize),ctypes.byref(Cprecision), ctypes.byref(Cnull_ok))
+            ret = ODBC_API.SQLDescribeCol(self.stmt_h, col, Refer(CName), len(CName), Refer(Cname_ptr),\
+                Refer(Ctype_code),Refer(Csize),Refer(Cprecision), Refer(Cnull_ok))
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
             ColDescr.append((CName.value, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Csize.value,Cprecision.value,Cnull_ok.value))
             self._ColType.append(Ctype_code.value)
         self.description = ColDescr
+        self.NumOfRows()
         return (self)
 
         
     def NumOfRows(self):
         """Get the number of rows"""
         NOR = ctypes.c_int()
-        ret = ODBC_API.SQLRowCount(self.stmt_h, ctypes.byref(NOR))
+        ret = ODBC_API.SQLRowCount(self.stmt_h, Refer(NOR))
         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
         self.rowcount = NOR.value
         return self.rowcount    
@@ -374,7 +382,7 @@ class Cursor:
         """Get the number of cols"""
         NOC = ctypes.c_int()
         
-        ret = ODBC_API.SQLNumResultCols(self.stmt_h, ctypes.byref(NOC))
+        ret = ODBC_API.SQLNumResultCols(self.stmt_h, Refer(NOC))
         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
         self.rowcount = NOC.value
         return NOC.value
@@ -401,7 +409,7 @@ class Cursor:
             except:
                 print SqlTypes[col_sql_type]
                 raise sys.exc_value
-            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SqlTypes[col_sql_type][2], ctypes.byref(a_buffer), 1024, ctypes.byref(buff_len))
+            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SqlTypes[col_sql_type][2], Refer(a_buffer), 1024, Refer(buff_len))
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
             col_buffs.append((a_buffer,buff_len))
             #self.__bind(col_num + 1, col_buffs[col_num], buff_id)
@@ -440,18 +448,13 @@ class Cursor:
     
     def __bind(self, col_num, data, buff_indicator):
         
-        ret = ODBC_API.SQLBindCol(self.stmt_h, col_num, SQL_C_CHAR, ctypes.byref(data), \
-          len(data), ctypes.byref(buff_indicator))
+        ret = ODBC_API.SQLBindCol(self.stmt_h, col_num, SQL_C_CHAR, Refer(data), \
+          len(data), Refer(buff_indicator))
         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
     
         
     def close(self):
-        self.__CloseCursor()
-    
-    def __CloseCursor(self):
         """ Call SQLCloseCursor API to free the statement handle"""
-        
-        
         ret = ODBC_API.SQLCloseCursor(self.stmt_h)
         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
         
@@ -467,7 +470,7 @@ class Cursor:
         #We want only tables
         t_type = ctypes.create_string_buffer('TABLE')
         ret = ODBC_API.SQLTables(self.stmt_h, None, 0, None, 0, None, 0, \
-            ctypes.byref(t_type), len(t_type))
+            Refer(t_type), len(t_type))
         if not ret == SQL_SUCCESS:
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
         data = ctypes.create_string_buffer(1024)
@@ -500,7 +503,7 @@ class Connection:
         # The handle of self.dbc_h will be used to connect to a certain source 
         # in the self.connect and self.ConnectByDSN method
         
-        ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_DBC, shared_env_h, ctypes.byref(self.dbc_h))
+        ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_DBC, shared_env_h, Refer(self.dbc_h))
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
         self.connect(connectString, autocommit, ansi, timeout, unicode_results)

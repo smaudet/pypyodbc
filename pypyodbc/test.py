@@ -2,6 +2,7 @@
 import sys, os
 import pypyodbc
 import ctypes
+import datetime
 
 
 def cur_file_dir():
@@ -63,15 +64,16 @@ if __name__ == "__main__":
         cur.execute('Drop table data;')
     except:
         pass
-    cur.execute(u"create table data (编号 integer, 产品名 varchar(200), 价格 float, 数量 numeric, 日期 datetime)")
+    cur.execute(u"""create table data (编号 integer, 产品名 varchar(200), 价格 float, 数量 numeric, 
+    日期 timestamp, shijian time, riqi date)""")
     import time
-    cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21')")
-    '''
-    cur.execute("insert into data values (?,?,?,?)", (2, u'X哦X'.encode('mbcs'),88.11119, 888.998798))
+    cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23')")
+    
+    cur.execute("insert into data values (?,?,?,?,?,?,?)", (2, u'X哦X'.encode('mbcs'),88.11119, 888.998798,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
     print time.time()
-    for i in xrange(3,10000):
-        cur.execute("insert into data values (?,?,?,?)", (i, u'X哦X'.encode('mbcs'),88.11119+i, 888.998798-i))
-    '''
+    for i in xrange(3,30000):
+        cur.execute("insert into data values (?,?,?,?,?,?,?)", (i, u'X哦X'.encode('gbk'),88.11119+i, 888.998798-i,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
+    
     print time.time()
     conn.commit()
     print time.time()
@@ -112,7 +114,7 @@ if __name__ == "__main__":
     #conn.rollback()
     cur = conn.cursor()
     print time.time()
-    cur.execute(u'update data set 数量 = ? where 数量 > 0 ',(str(time.time()),)).NumOfRows()
+    cur.execute(u'update data set 数量 = ? where 数量 > 0 ',(str(time.time()),))
     print cur.rowcount
     print time.time()
     conn.commit()
