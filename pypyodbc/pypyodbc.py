@@ -115,7 +115,7 @@ def create_buffer():
 # http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.aseodbc/html/aseodbc/CACFDIGH.htm
 SqlTypes = { \
 SQL_TYPE_NULL       : ('SQL_TYPE_NULL',     lambda x: None,             SQL_C_CHAR,         create_buffer), 
-SQL_CHAR            : ('SQL_CHAR',          lambda x: str(x),           SQL_C_CHAR,         create_buffer),
+SQL_CHAR            : ('SQL_CHAR',          lambda x: x,                SQL_C_CHAR,         create_buffer),
 SQL_NUMERIC         : ('SQL_NUMERIC',       lambda x: Decimal(x),       SQL_C_CHAR,         create_buffer),
 SQL_DECIMAL         : ('SQL_DECIMAL',       lambda x: Decimal(x),       SQL_C_CHAR,         create_buffer),
 SQL_INTEGER         : ('SQL_INTEGER',       lambda x: long(x),          SQL_C_LONG,         lambda :ctypes.c_long()),
@@ -126,8 +126,8 @@ SQL_DOUBLE          : ('SQL_DOUBLE',        lambda x: float(x),         SQL_C_DO
 SQL_DATE            : ('SQL_DATE',          lambda x: dt_cvt(x),        SQL_C_CHAR ,        create_buffer),
 SQL_TIME            : ('SQL_TIME',          lambda x: tm_cvt(x),        SQL_C_CHAR,         create_buffer),
 SQL_TIMESTAMP       : ('SQL_TIMESTAMP',     lambda x: dttm_cvt(x),      SQL_C_CHAR,         create_buffer),
-SQL_VARCHAR         : ('SQL_VARCHAR',       lambda x: str(x),           SQL_C_CHAR,         create_buffer),
-SQL_LONGVARCHAR     : ('SQL_LONGVARCHAR',   lambda x: str(x),           SQL_C_CHAR,         create_buffer),
+SQL_VARCHAR         : ('SQL_VARCHAR',       lambda x: x,                SQL_C_CHAR,         create_buffer),
+SQL_LONGVARCHAR     : ('SQL_LONGVARCHAR',   lambda x: x,                SQL_C_CHAR,         create_buffer),
 SQL_BINARY          : ('SQL_BINARY',        lambda x: bytearray(x),     SQL_C_BINARY,       lambda :ctypes.c_buffer()),
 SQL_VARBINARY       : ('SQL_VARBINARY',     lambda x: bytearray(x),     SQL_C_BINARY,       lambda :ctypes.c_buffer()),
 SQL_LONGVARBINARY   : ('SQL_LONGVARBINARY', lambda x: bytearray(x),     SQL_C_BINARY,       lambda :ctypes.c_buffer()),
@@ -398,8 +398,15 @@ class Cursor:
             
             a_buffer = SqlTypes[col_type_code][3]()
             buff_len = ctypes.c_long()
-
-            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SqlTypes[col_type_code][2], ADDR(a_buffer), 1024, ADDR(buff_len))
+            
+            target_type = SqlTypes[col_type_code][2]
+            force_unicode = self._conx.unicode_results
+            if DEBUGGING: print 'force_unicode: ' + str(force_unicode)
+            if force_unicode and col_type_code in (SQL_CHAR,SQL_VARCHAR,SQL_LONGVARCHAR):
+                target_type = SQL_C_WCHAR
+                a_buffer = create_buffer_u()
+            
+            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, target_type, ADDR(a_buffer), 1024, ADDR(buff_len))
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
             col_buffer_list.append((a_buffer,buff_len))
             cvt_buf_func_list.append(SqlTypes[self.ColTypeCodeList[col_num]][1])
@@ -461,11 +468,9 @@ class Cursor:
                         row[col_num] = create_f(buf_value.value)
                 except:
                     print (colbuf[0].value)
-                    print (len(colbuf[0].value))
                     print (SqlTypes[self.ColTypeCodeList[col_num]][0])
                     print type(colbuf[0].value)
                     x = colbuf[0].value
-                    print (int(x[0:3]),int(x[5:6]),int(x[8:9]))
                     raise sys.exc_value
                 col_num += 1
             rows.append(row)
@@ -536,6 +541,7 @@ class Connection:
     def __init__(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
         """Init variables and connect to the engine"""
         self.connected = 0
+        self.unicode_results = False
         self.dbc_h = ctypes.c_int()
         
         # Allocate an DBC handle self.dbc_h under the environment shared_env_h
@@ -590,6 +596,7 @@ class Connection:
         ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_AUTOCOMMIT, self.autocommit and SQL_AUTOCOMMIT_ON or SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
+        self.unicode_results = unicode_results
         self.connected = 1
         
 

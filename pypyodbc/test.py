@@ -31,7 +31,7 @@ def u8_enc(v, force_str = False):
 
 
 def prof_func():
-    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb')
+    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True)
 
     cur = conn.cursor()
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         dsn_test =  'pg'
     user = 'tutti'
 
-    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb')
+    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True)
     #conn = pypyodbc.connect('DSN=PostgreSQL35W')
     #conn = pypyodbc.connect('DSN=MySQL')
     #Dsn list
