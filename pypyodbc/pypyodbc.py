@@ -266,12 +266,13 @@ class Cursor:
         """
         self._conx = conx
         self.last_query = None
-        self.ParamBufferList = None
-        self.ColBufferList = None
+        self.ParamBufferList = []
+        self.ColBufferList = []
+        self.cvt_buf_func_list = []
         self.rowcount = None
         self.description = None
         self.autocommit = None
-        self.ColTypeCodeList = None
+        self.ColTypeCodeList = []
         self.stmt_h = ctypes.c_int()
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self._conx.dbc_h, ADDR(self.stmt_h))
         validate(ret, SQL_HANDLE_STMT, self.stmt_h)
@@ -380,6 +381,25 @@ class Cursor:
         self._BindCols()
         return (self)
 
+    
+    def _BindCols(self):
+        NOC = self.NumOfCols()
+        col_buffer_list = []
+        cvt_buf_func_list = []
+        for col_num in range(NOC):
+            col_type_code = self.ColTypeCodeList[col_num]
+            
+            a_buffer = SqlTypes[col_type_code][3]()
+            buff_len = ctypes.c_long()
+
+            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SqlTypes[col_type_code][2], ADDR(a_buffer), 1024, ADDR(buff_len))
+            validate(ret, SQL_HANDLE_STMT, self.stmt_h)
+            col_buffer_list.append((a_buffer,buff_len))
+            cvt_buf_func_list.append(SqlTypes[self.ColTypeCodeList[col_num]][1])
+            #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
+        self.ColBufferList = col_buffer_list
+        self.cvt_buf_func_list = cvt_buf_func_list
+        
         
     def NumOfRows(self):
         """Get the number of rows"""
@@ -410,59 +430,41 @@ class Cursor:
     
     def fetchall(self):
         return self.__fetch()
-    
-    def _BindCols(self):
-        NOC = self.NumOfCols()
-        col_buffer_list = []
-        
-        for col_num in range(NOC):
-            col_type_code = self.ColTypeCodeList[col_num]
-            
-            a_buffer = SqlTypes[col_type_code][3]()
-            buff_len = ctypes.c_long()
-
-            ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, SqlTypes[col_type_code][2], ADDR(a_buffer), 1024, ADDR(buff_len))
-            validate(ret, SQL_HANDLE_STMT, self.stmt_h)
-            col_buffer_list.append((a_buffer,buff_len))
-            #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
-        self.ColBufferList = col_buffer_list
 
     
     def __fetch(self, num = 0):
-        i_row = 0
         rows = []
-        while num == 0 or i_row < num:
-            row = []
+        row_num = 0
+        # limit to num time loops, or loop until no data if num == 0
+        while num == 0 or row_num < num:
             ret = ODBC_API.SQLFetch(self.stmt_h)
-            if ret == SQL_NO_DATA_FOUND:
+            if ret == SQL_SUCCESS:
+                pass
+            elif ret == SQL_NO_DATA_FOUND:
                 break
-            elif not ret == SQL_SUCCESS:
+            else:
                 validate(ret, SQL_HANDLE_STMT, self.stmt_h)
-            i_col = 0
-            for col in self.ColBufferList:
                 
+            row = [None for colbuf in self.ColBufferList]
+            col_num = 0
+            
+            for buf_value, buf_len in self.ColBufferList:
                 try:
-                    if col[1].value == SQL_NULL_DATA:
-                        row.append(None)
-                    else:
-                        constructor = SqlTypes[self.ColTypeCodeList[i_col]][1]
-                        row.append(constructor(col[0].value))
+                    if buf_len.value != SQL_NULL_DATA:
+                        create_f = self.cvt_buf_func_list[col_num]
+                        row[col_num] = create_f(buf_value.value)
                 except:
-                    print (col[0].value)
-                    print (len(col[0].value))
-                    print (SqlTypes[self.ColTypeCodeList[i_col]][0])
-                    print type(col[0].value)
-                    x = col[0].value
+                    print (colbuf[0].value)
+                    print (len(colbuf[0].value))
+                    print (SqlTypes[self.ColTypeCodeList[col_num]][0])
+                    print type(colbuf[0].value)
+                    x = colbuf[0].value
                     print (int(x[0:3]),int(x[5:6]),int(x[8:9]))
                     raise sys.exc_value
-                i_col += 1
+                col_num += 1
             rows.append(row)
-            i_row += 1
+            row_num += 1
         return rows
-    
-
-        
-
     
         
     def close(self):
@@ -641,9 +643,11 @@ class Connection:
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_ENV, shared_env_h)
             validate(ret, SQL_HANDLE_ENV, shared_env_h)
         '''
+        
+        
 odbc = Connection
 
 def connect(connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
-    conn = Connection(connectString, autocommit, ansi, timeout, unicode_results)
+    conn = odbc(connectString, autocommit, ansi, timeout, unicode_results)
     return conn
 

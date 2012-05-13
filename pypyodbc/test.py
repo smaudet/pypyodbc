@@ -29,6 +29,35 @@ def u8_enc(v, force_str = False):
 
 
 
+
+def prof_func():
+    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb')
+
+    cur = conn.cursor()
+
+
+    cur.execute(u"""select * from data""")
+
+    i = 0
+    row = cur.fetchone()
+    while row != None:
+        for field in row:
+            x = field
+        i += 1
+        if i % 5000 == 0:
+            print i,
+        
+        row = cur.fetchone()
+        
+    #print conn.FetchAll()
+    #Close before exit
+    cur.close()
+    conn.close()
+    
+
+
+
+
 if __name__ == "__main__":
     
     DSN_list = pypyodbc.dataSources()
@@ -145,3 +174,6 @@ if __name__ == "__main__":
     #Close before exit
     cur.close()
     conn.close()
+    import cProfile
+    cProfile.run('prof_func()')
+    
