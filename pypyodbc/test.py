@@ -60,6 +60,10 @@ if __name__ == "__main__":
     
     #cur.close()
     cur = conn.cursor()
+    for row in cur.tables().fetchall():
+        print row
+    cur.close()
+    cur = conn.cursor()
     try:
         cur.execute('Drop table data;')
     except:
@@ -72,7 +76,7 @@ if __name__ == "__main__":
     cur.execute("insert into data values (?,?,?,?,?,?,?)", (2, u'X哦X'.encode('mbcs'),88.11119, 888.998798,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
     print time.time()
     for i in xrange(3,16000):
-        cur.execute("insert into data values (?,?,?,?,?,?,?)", (i, u'X哦X'.encode('gbk'),88.11119+i, 888.998798-i,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
+        cur.execute("insert into data values (?,?,?,?,?,?,?)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk'),88.11119+i, 888.998798-i,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
     
     print time.time()
     conn.commit()
