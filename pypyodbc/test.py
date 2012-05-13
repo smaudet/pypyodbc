@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys, os
-import pypyodbc
+import pypyodbc as pypyodbc
 import ctypes
 import datetime
 
@@ -8,7 +8,7 @@ import datetime
 def cur_file_dir():
     return os.path.dirname(os.path.realpath(sys.argv[0]))
 
-c_Path = ctypes.create_string_buffer(u"CREATE_DB=.\\自由.mdb General\0".encode('mbcs'))
+c_Path = ctypes.create_string_buffer(u"CREATE_DB=.\\e.mdb General\0".encode('mbcs'))
 ODBC_ADD_SYS_DSN = 1
 ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         dsn_test =  'pg'
     user = 'tutti'
 
-    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\自由.mdb')
+    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb')
     #conn = pypyodbc.connect('DSN=PostgreSQL35W')
     #conn = pypyodbc.connect('DSN=MySQL')
     #Dsn list
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     
     cur.execute("insert into data values (?,?,?,?,?,?,?)", (2, u'X哦X'.encode('mbcs'),88.11119, 888.998798,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
     print time.time()
-    for i in xrange(3,30000):
+    for i in xrange(3,16000):
         cur.execute("insert into data values (?,?,?,?,?,?,?)", (i, u'X哦X'.encode('gbk'),88.11119+i, 888.998798-i,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
     
     print time.time()
@@ -118,24 +118,25 @@ if __name__ == "__main__":
     print cur.rowcount
     print time.time()
     conn.commit()
-    for row in cur.execute(u"""select * from data""".encode('mbcs')).fetchone():
-        for field in row:
-            if isinstance(field, unicode):
-                print (field.encode('mbcs'))
-            else:
-                print (field)
-        print ('')
-        print (cur.description)
+    for field in cur.execute(u"""select * from data""").fetchone():
+        if isinstance(field, unicode):
+            print field.encode('mbcs'),
+        else:
+            print field,
+    print ('')
+    print (cur.description)
     
     i = 1
     row = cur.fetchone()
-    while row != []:
-        row = cur.fetchone()
+    while row != None:
         for field in row:
             x = field
         i += 1
         if i % 5000 == 0:
             print i,
+        
+        row = cur.fetchone()
+        
     #print conn.FetchAll()
     #Close before exit
     cur.close()
