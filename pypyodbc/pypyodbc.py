@@ -25,6 +25,8 @@ import sys, os, datetime, ctypes
 from decimal import Decimal
 
 DEBUGGING = 1
+version = '1.0 alpha'
+
 
 # Set the library location on linux 
 library = "/usr/lib/libodbc.so"
@@ -187,9 +189,9 @@ for func_name in funcs_with_ret:
 
 
 
-# Set the alias for the ctypes get reference function for beter code readbility.
+# Set the alias for the ctypes get reference function for beter code readbility or performance.
 ADDR = ctypes.byref
-
+SQLFetch = ODBC_API.SQLFetch
 
 
 def ctrl_err(ht, h, val_ret):
@@ -333,19 +335,24 @@ class Cursor:
                 raise Exception
             else:
                 # With query prepared, now put parameters into buffers
-                for i in range(len(params)):
+                col_num = 0
+                for buf_value, buf_len in self.ParamBufferList:
                     c_char_buf = ''
-                    if type(params[i]) == datetime.datetime:
-                        c_char_buf = params[i].isoformat().replace('T',' ')[:19]
-                    elif type(params[i]) == datetime.date:
-                        c_char_buf = params[i].isoformat()
-                    elif type(params[i]) == datetime.time:
-                        c_char_buf = params[i].isoformat()[0:8]
+                    param_val = params[col_num]
+                    if param_val == None:
+                        pass
+                    elif type(param_val) == datetime.datetime:
+                        c_char_buf = param_val.isoformat().replace('T',' ')[:19]
+                    elif type(param_val) == datetime.date:
+                        c_char_buf = param_val.isoformat()
+                    elif type(param_val) == datetime.time:
+                        c_char_buf = param_val.isoformat()[0:8]
                     else:
-                        c_char_buf = str(params[i])
-                        
-                    self.ParamBufferList[i][0].value = c_char_buf
-                    self.ParamBufferList[i][1].value = len(c_char_buf)
+                        c_char_buf = str(param_val)
+                    buf_value.value, buf_len.value = c_char_buf, len(c_char_buf)
+                    if param_val == None:
+                        buf_len.value = -1
+                    col_num += 1
                     #print c_char_buf
     
             ret = ODBC_API.SQLExecute(self.stmt_h)
@@ -423,10 +430,10 @@ class Cursor:
 
     def fetchone(self):
         records = self.__fetch(1)
-        if len(records) == 0:
-            return None
-        else:
+        if records != []:
             return records[0]
+        else:
+            return None
     
     def fetchall(self):
         return self.__fetch()
@@ -437,13 +444,12 @@ class Cursor:
         row_num = 0
         # limit to num time loops, or loop until no data if num == 0
         while num == 0 or row_num < num:
-            ret = ODBC_API.SQLFetch(self.stmt_h)
-            if ret == SQL_SUCCESS:
-                pass
-            elif ret == SQL_NO_DATA_FOUND:
-                break
-            else:
-                validate(ret, SQL_HANDLE_STMT, self.stmt_h)
+            ret = SQLFetch(self.stmt_h)
+            if ret != SQL_SUCCESS:
+                if ret == SQL_NO_DATA_FOUND:
+                    break
+                else:
+                    validate(ret, SQL_HANDLE_STMT, self.stmt_h)
                 
             row = [None for colbuf in self.ColBufferList]
             col_num = 0

@@ -98,14 +98,14 @@ if __name__ == "__main__":
     except:
         pass
     cur.execute(u"""create table data (编号 integer, 产品名 varchar(200), 价格 float, 数量 numeric, 
-    日期 timestamp, shijian time, riqi date)""")
+    日期 timestamp, shijian time, riqi date, kong float)""")
     import time
-    cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23')")
+    cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)")
     
-    cur.execute("insert into data values (?,?,?,?,?,?,?)", (2, u'X哦X'.encode('mbcs'),88.11119, 888.998798,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
+    cur.execute("insert into data values (?,?,?,?,?,?,?,NULL)", (2, u'X哦X'.encode('mbcs'),88.11119, 888.998798,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
     print time.time()
     for i in xrange(3,16000):
-        cur.execute("insert into data values (?,?,?,?,?,?,?)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk'),88.11119+i, 888.998798-i,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
+        cur.execute("insert into data values (?,?,?,?,?,?,?,?)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk'),88.11119+i, 888.998798-i,None,datetime.datetime.now().time(), datetime.datetime.now().date(),i/10.0))
     
     print time.time()
     conn.commit()
