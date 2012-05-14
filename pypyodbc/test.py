@@ -88,17 +88,23 @@ if __name__ == "__main__":
     #Make a query
     
     #cur.close()
+
     cur = conn.cursor()
-    for row in cur.tables().fetchall():
+    if cur.tables(table='data').fetchone():
+        cur.close()
+        cur = conn.cursor()
+        cur.execute('Drop table data;')
+        
+    
+
+    cur.execute(u"""create table data (编号 integer, 产品名 varchar(200), 价格 float, 数量 numeric, 
+    日期 timestamp, shijian time, riqi date, kong float)""")
+    for row in cur.columns(table='data').fetchall():
         print row
     cur.close()
     cur = conn.cursor()
-    try:
-        cur.execute('Drop table data;')
-    except:
-        pass
-    cur.execute(u"""create table data (编号 integer, 产品名 varchar(200), 价格 float, 数量 numeric, 
-    日期 timestamp, shijian time, riqi date, kong float)""")
+    
+    
     import time
     cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)")
     

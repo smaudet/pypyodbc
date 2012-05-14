@@ -24,7 +24,7 @@
 import sys, os, datetime, ctypes
 from decimal import Decimal
 
-DEBUGGING = 1
+DEBUGGING = 0
 version = '1.0 alpha'
 
 
@@ -180,10 +180,11 @@ else:
 
 # Define the return type for ODBC functions with ret result.
 
-funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute",
-"SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount","SQLNumResultCols",
-"SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLConnect","SQLTables","SQLDescribeCol",
-"SQLDataSources","SQLFreeHandle","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW","SQLDescribeParam"]
+funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCols","SQLDescribeCol",
+        "SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount",
+        "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLConnect","SQLTables",
+        "SQLDataSources","SQLFreeHandle","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW","SQLDescribeParam"]
+    
 for func_name in funcs_with_ret:
     getattr(ODBC_API,func_name).restype = ctypes.c_short
 
@@ -270,7 +271,7 @@ class Cursor:
         self.last_query = None
         self.ParamBufferList = []
         self.ColBufferList = []
-        self.cvt_buf_func_list = []
+        self.buf_cvt_func = []
         self.rowcount = None
         self.description = None
         self.autocommit = None
@@ -366,7 +367,12 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
             
         self.NumOfRows()
-        "same as pyodbc's tuple (name, type_code, display_size, internal_size, precision, scale, null_ok)"
+        self._GetDesc()
+        self._BindCols()
+        return (self)
+    
+    def _GetDesc(self):
+        "Get the tuple of (name, type_code, display_size, internal_size, precision, scale, null_ok)"  
         Cname = ctypes.create_string_buffer(1024)
         Cname_ptr = ctypes.c_int()
         Ctype_code = ctypes.c_short()
@@ -385,14 +391,13 @@ class Cursor:
                 Cprecision.value,Cnull_ok.value))
             self.ColTypeCodeList.append(Ctype_code.value)
         self.description = ColDescr
-        self._BindCols()
-        return (self)
+        
 
     
     def _BindCols(self):
         NOC = self.NumOfCols()
         col_buffer_list = []
-        cvt_buf_func_list = []
+        buf_cvt_func = []
         for col_num in range(NOC):
             col_type_code = self.ColTypeCodeList[col_num]
             
@@ -401,7 +406,7 @@ class Cursor:
             
             target_type = SqlTypes[col_type_code][2]
             force_unicode = self._conx.unicode_results
-            if DEBUGGING: print 'force_unicode: ' + str(force_unicode)
+
             if force_unicode and col_type_code in (SQL_CHAR,SQL_VARCHAR,SQL_LONGVARCHAR):
                 target_type = SQL_C_WCHAR
                 a_buffer = create_buffer_u()
@@ -409,10 +414,10 @@ class Cursor:
             ret = ODBC_API.SQLBindCol(self.stmt_h, col_num + 1, target_type, ADDR(a_buffer), 1024, ADDR(buff_len))
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
             col_buffer_list.append((a_buffer,buff_len))
-            cvt_buf_func_list.append(SqlTypes[self.ColTypeCodeList[col_num]][1])
+            buf_cvt_func.append(SqlTypes[self.ColTypeCodeList[col_num]][1])
             #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
         self.ColBufferList = col_buffer_list
-        self.cvt_buf_func_list = cvt_buf_func_list
+        self.buf_cvt_func = buf_cvt_func
         
         
     def NumOfRows(self):
@@ -459,13 +464,12 @@ class Cursor:
                     validate(ret, SQL_HANDLE_STMT, self.stmt_h)
                 
             row = [None for colbuf in self.ColBufferList]
-            col_num = 0
             
+            col_num = 0
             for buf_value, buf_len in self.ColBufferList:
                 try:
                     if buf_len.value != SQL_NULL_DATA:
-                        create_f = self.cvt_buf_func_list[col_num]
-                        row[col_num] = create_f(buf_value.value)
+                        row[col_num] = self.buf_cvt_func[col_num](buf_value.value)
                 except:
                     print (colbuf[0].value)
                     print (SqlTypes[self.ColTypeCodeList[col_num]][0])
@@ -490,48 +494,92 @@ class Cursor:
         
         return
     
-    def tables(self):
+    def tables(self, table=None, catalog=None, schema=None, tableType=None):
         """Return a list with all tables"""
-        #We want only tables
-        t_type = ctypes.create_string_buffer('TABLE')
-        ret = ODBC_API.SQLTables(self.stmt_h, None, 0, None, 0, None, 0, \
-            None, 0)
+        v_catalog, l_catalog = None, 0
+        if catalog:
+            c_catalog = ctypes.create_string_buffer(catalog)
+            v_catalog = ADDR(c_catalog)
+            l_catalog = len(c_catalog)
+            
+        v_schema, l_schema = None, 0
+        if schema:
+            c_schema = ctypes.create_string_buffer(schema)
+            v_schema = ADDR(c_schema)
+            l_schema = len(c_schema)
+            
+        v_table, l_table = None, 0
+        if table: 
+            c_table = ctypes.create_string_buffer(table)
+            v_table = ADDR(c_table)
+            l_table = len(c_table)
+            
+        v_tabletype, l_tabletype = None, 0
+        if tableType: 
+            c_tabletype = ctypes.create_string_buffer(tableType)
+            v_tabletype = ADDR(c_tabletype)
+            l_tabletype = len(c_tabletype)
+        
+        
+        ret = ODBC_API.SQLTables(self.stmt_h,
+                                v_catalog, l_catalog,
+                                v_schema, l_schema, 
+                                v_table, l_table,
+                                v_tabletype, l_tabletype)
+
         if not ret == SQL_SUCCESS:
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
     
         self.NumOfRows()
-        "same as pyodbc's tuple (name, type_code, display_size, internal_size, precision, scale, null_ok)"
-        Cname = ctypes.create_string_buffer(1024)
-        Cname_ptr = ctypes.c_int()
-        Ctype_code = ctypes.c_short()
-        Csize = ctypes.c_int()
-        Cprecision = ctypes.c_int()
-        Cnull_ok = ctypes.c_int()
-        ColDescr = []
-        self.ColTypeCodeList = []
-        NOC = self.NumOfCols()
-        for col in range(1, NOC+1):
-            ret = ODBC_API.SQLDescribeCol(self.stmt_h, col, ADDR(Cname), len(Cname), ADDR(Cname_ptr),\
-                ADDR(Ctype_code),ADDR(Csize),ADDR(Cprecision), ADDR(Cnull_ok))
-            validate(ret, SQL_HANDLE_STMT, self.stmt_h)
-            
-            ColDescr.append((Cname.value, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Csize.value,\
-                Cprecision.value,Cnull_ok.value))
-            self.ColTypeCodeList.append(Ctype_code.value)
-        self.description = ColDescr
+        self._GetDesc()
         self._BindCols()
         return (self)
-
     
     
-    def columns(self, table):
-        """We return a list with a tuple for every col:
-        field, type, number of digits, allow null"""
-        self.Query("SELECT * FROM " + table)
+    def columns(self, table=None, catalog=None, schema=None, column=None):
+        """Return a list with all columns"""        
+        v_catalog, l_catalog = None, 0
+        if catalog:
+            c_catalog = ctypes.create_string_buffer(catalog)
+            v_catalog = ADDR(c_catalog)
+            l_catalog = len(c_catalog)
+            
+        v_schema, l_schema = None, 0
+        if schema:
+            c_schema = ctypes.create_string_buffer(schema)
+            v_schema = ADDR(c_schema)
+            l_schema = len(c_schema)
+            
+        v_table, l_table = None, 0
+        if table: 
+            c_table = ctypes.create_string_buffer(table)
+            v_table = ADDR(c_table)
+            l_table = len(c_table)
+            
+        v_column, l_column = None, 0
+        if column: 
+            c_column = ctypes.create_string_buffer(column)
+            v_column = ADDR(c_column)
+            l_column = len(c_column)
+        
+        
+        
 
-    
 
 
+        ret = ODBC_API.SQLColumns(self.stmt_h,
+                            v_catalog, l_catalog,
+                            v_schema, l_schema,
+                            v_table, l_table,
+                            v_column, l_column)
+
+        if not ret == SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self.stmt_h)
+
+        self.NumOfRows()
+        self._GetDesc()
+        self._BindCols()
+        return (self)
 
 
 
