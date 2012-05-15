@@ -116,30 +116,30 @@ def create_buffer():
 SqlTypes = { \
 SQL_TYPE_NULL       : ('SQL_TYPE_NULL',     lambda x: None,             SQL_C_CHAR,         create_buffer), 
 SQL_CHAR            : ('SQL_CHAR',          lambda x: x,                SQL_C_CHAR,         create_buffer),
-SQL_NUMERIC         : ('SQL_NUMERIC',       lambda x: Decimal(x),       SQL_C_CHAR,         create_buffer),
-SQL_DECIMAL         : ('SQL_DECIMAL',       lambda x: Decimal(x),       SQL_C_CHAR,         create_buffer),
-SQL_INTEGER         : ('SQL_INTEGER',       lambda x: long(x),          SQL_C_LONG,         lambda :ctypes.c_long()),
-SQL_SMALLINT        : ('SQL_SMALLINT',      lambda x: long(x),          SQL_C_SHORT,        lambda :ctypes.c_short()),
-SQL_FLOAT           : ('SQL_FLOAT',         lambda x: float(x),         SQL_C_FLOAT,        lambda :ctypes.c_float()),
-SQL_REAL            : ('SQL_REAL',          lambda x: float(x),         SQL_C_FLOAT,        lambda :ctypes.c_float()),
-SQL_DOUBLE          : ('SQL_DOUBLE',        lambda x: float(x),         SQL_C_DOUBLE,       lambda :ctypes.c_double()),
-SQL_DATE            : ('SQL_DATE',          lambda x: dt_cvt(x),        SQL_C_CHAR ,        create_buffer),
-SQL_TIME            : ('SQL_TIME',          lambda x: tm_cvt(x),        SQL_C_CHAR,         create_buffer),
-SQL_TIMESTAMP       : ('SQL_TIMESTAMP',     lambda x: dttm_cvt(x),      SQL_C_CHAR,         create_buffer),
+SQL_NUMERIC         : ('SQL_NUMERIC',       Decimal,                    SQL_C_CHAR,         create_buffer),
+SQL_DECIMAL         : ('SQL_DECIMAL',       Decimal,                     SQL_C_CHAR,         create_buffer),
+SQL_INTEGER         : ('SQL_INTEGER',       long,                       SQL_C_LONG,         lambda :ctypes.c_long()),
+SQL_SMALLINT        : ('SQL_SMALLINT',      long,                       SQL_C_SHORT,        lambda :ctypes.c_short()),
+SQL_FLOAT           : ('SQL_FLOAT',         float,                      SQL_C_FLOAT,        lambda :ctypes.c_float()),
+SQL_REAL            : ('SQL_REAL',          float,                      SQL_C_FLOAT,        lambda :ctypes.c_float()),
+SQL_DOUBLE          : ('SQL_DOUBLE',        float,                      SQL_C_DOUBLE,       lambda :ctypes.c_double()),
+SQL_DATE            : ('SQL_DATE',          dt_cvt,                     SQL_C_CHAR ,        create_buffer),
+SQL_TIME            : ('SQL_TIME',          tm_cvt,                     SQL_C_CHAR,         create_buffer),
+SQL_TIMESTAMP       : ('SQL_TIMESTAMP',     dttm_cvt,                   SQL_C_CHAR,         create_buffer),
 SQL_VARCHAR         : ('SQL_VARCHAR',       lambda x: x,                SQL_C_CHAR,         create_buffer),
 SQL_LONGVARCHAR     : ('SQL_LONGVARCHAR',   lambda x: x,                SQL_C_CHAR,         create_buffer),
 SQL_BINARY          : ('SQL_BINARY',        lambda x: bytearray(x),     SQL_C_BINARY,       lambda :ctypes.c_buffer()),
 SQL_VARBINARY       : ('SQL_VARBINARY',     lambda x: bytearray(x),     SQL_C_BINARY,       lambda :ctypes.c_buffer()),
 SQL_LONGVARBINARY   : ('SQL_LONGVARBINARY', lambda x: bytearray(x),     SQL_C_BINARY,       lambda :ctypes.c_buffer()),
-SQL_BIGINT          : ('SQL_BIGINT',        lambda x: long(x),          SQL_C_LONG,         lambda :ctypes.c_long()),
-SQL_TINYINT         : ('SQL_TINYINT',       lambda x: long(x),          SQL_C_TINYINT,      lambda :ctypes.c_short()),
-SQL_BIT             : ('SQL_BIT',           lambda x: bool(x),          SQL_C_BIT,          lambda :ctypes.c_short()),
+SQL_BIGINT          : ('SQL_BIGINT',        long,                       SQL_C_LONG,         lambda :ctypes.c_long()),
+SQL_TINYINT         : ('SQL_TINYINT',       long,                       SQL_C_TINYINT,      lambda :ctypes.c_short()),
+SQL_BIT             : ('SQL_BIT',           bool,                       SQL_C_BIT,          lambda :ctypes.c_short()),
 SQL_WCHAR           : ('SQL_WCHAR',         lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
 SQL_WVARCHAR        : ('SQL_WVARCHAR',      lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
 SQL_WLONGVARCHAR    : ('SQL_WLONGVARCHAR',  lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
-SQL_TYPE_DATE       : ('SQL_TYPE_DATE',     lambda x: dt_cvt(x),        SQL_C_CHAR,         create_buffer),
-SQL_TYPE_TIME       : ('SQL_TYPE_TIME',     lambda x: tm_cvt(x),        SQL_C_CHAR,         create_buffer),
-SQL_TYPE_TIMESTAMP  : ('SQL_TYPE_TIMESTAMP',lambda x: dttm_cvt(x),      SQL_C_CHAR,         create_buffer), 
+SQL_TYPE_DATE       : ('SQL_TYPE_DATE',     dt_cvt,                     SQL_C_CHAR,         create_buffer),
+SQL_TYPE_TIME       : ('SQL_TYPE_TIME',     tm_cvt,                     SQL_C_CHAR,         create_buffer),
+SQL_TYPE_TIMESTAMP  : ('SQL_TYPE_TIMESTAMP',dttm_cvt,                   SQL_C_CHAR,         create_buffer), 
 }
 
 
@@ -192,7 +192,7 @@ for func_name in funcs_with_ret:
 
 # Set the alias for the ctypes get reference function for beter code readbility or performance.
 ADDR = ctypes.byref
-SQLFetch = ODBC_API.SQLFetch
+SQLFetch =ODBC_API.SQLFetch
 
 
 def ctrl_err(ht, h, val_ret):
