@@ -97,7 +97,7 @@ if __name__ == "__main__":
         
     
 
-    cur.execute(u"""create table data (编号 integer, 产品名 varchar(200), 价格 float, 数量 numeric, 
+    cur.execute(u"""create table data (编号 integer, 产品名 varchar(20), 价格 float, 数量 numeric, 
     日期 timestamp, shijian time, riqi date, kong float)""")
     for row in cur.columns(table='data').fetchall():
         print row

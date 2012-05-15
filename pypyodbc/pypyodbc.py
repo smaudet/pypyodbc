@@ -367,11 +367,11 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
             
         self.NumOfRows()
-        self._GetDesc()
+        self._UpdateDesc()
         self._BindCols()
         return (self)
     
-    def _GetDesc(self):
+    def _UpdateDesc(self):
         "Get the tuple of (name, type_code, display_size, internal_size, precision, scale, null_ok)"  
         Cname = ctypes.create_string_buffer(1024)
         Cname_ptr = ctypes.c_int()
@@ -440,11 +440,21 @@ class Cursor:
         return self.__fetch(num)
 
     def fetchone(self):
-        records = self.__fetch(1)
-        if records != []:
-            return records[0]
-        else:
-            return None
+        ret = SQLFetch(self.stmt_h)
+        if ret != SQL_SUCCESS:
+            if ret == SQL_NO_DATA_FOUND:
+                return (None)
+            else:
+                validate(ret, SQL_HANDLE_STMT, self.stmt_h)
+            
+        row = [None for colbuf in self.ColBufferList]
+        
+        col_num = 0
+        for buf_value, buf_len, cvt_func in self.ColBufferList:
+            if buf_len.value != SQL_NULL_DATA:
+                row[col_num] = cvt_func(buf_value.value)
+            col_num += 1
+        return (row)
     
     def fetchall(self):
         return self.__fetch()
@@ -466,6 +476,10 @@ class Cursor:
             
             col_num = 0
             for buf_value, buf_len, cvt_func in self.ColBufferList:
+                if buf_len.value != SQL_NULL_DATA:
+                    row[col_num] = cvt_func(buf_value.value)
+                col_num += 1
+                '''
                 try:
                     if buf_len.value != SQL_NULL_DATA:
                         row[col_num] = cvt_func(buf_value.value)
@@ -475,7 +489,8 @@ class Cursor:
                     print type(colbuf[0].value)
                     x = colbuf[0].value
                     raise sys.exc_value
-                col_num += 1
+                '''
+                
             rows.append(row)
             row_num += 1
         return rows
@@ -530,7 +545,7 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
     
         self.NumOfRows()
-        self._GetDesc()
+        self._UpdateDesc()
         self._BindCols()
         return (self)
     
@@ -576,7 +591,7 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self.stmt_h)
 
         self.NumOfRows()
-        self._GetDesc()
+        self._UpdateDesc()
         self._BindCols()
         return (self)
 
