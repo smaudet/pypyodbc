@@ -2,7 +2,7 @@
 import sys, os
 import pypyodbc as pypyodbc
 import ctypes
-import datetime
+import time
 
 
 def cur_file_dir():
@@ -10,7 +10,7 @@ def cur_file_dir():
 
 c_Path = ctypes.create_string_buffer(u"CREATE_DB=.\\e.mdb General\0".encode('mbcs'))
 ODBC_ADD_SYS_DSN = 1
-ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
+#ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
 
 
 def u8_enc(v, force_str = False):
@@ -90,38 +90,37 @@ if __name__ == "__main__":
     #cur.close()
 
     cur = conn.cursor()
+    '''
     if cur.tables(table='data').fetchone():
         cur.close()
         cur = conn.cursor()
         cur.execute('Drop table data;')
         
     
-
-    cur.execute(u"""create table data (编号 integer, 产品名 varchar(20), 价格 float, 数量 numeric, 
+    cur.execute(u"""create table data (编号 integer, 产品名 memo, 价格 float, 数量 numeric, 
     日期 timestamp, shijian time, riqi date, kong float)""")
     for row in cur.columns(table='data').fetchall():
         print row
     cur.close()
     cur = conn.cursor()
     
-    
-    import time
     cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)")
-    
-    cur.execute("insert into data values (?,?,?,?,?,?,?,NULL)", (2, u'X哦X'.encode('mbcs'),88.11119, 888.998798,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
+    longtext = u''.join([u'北京天安门']*50)
+    cur.execute("insert into data values (?,?,?,?,?,?,?,NULL)", (2, longtext.encode('mbcs'),88.11119, 888.998798,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
     print time.time()
     for i in xrange(3,16000):
         cur.execute("insert into data values (?,?,?,?,?,?,?,?)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk'),88.11119+i, 888.998798-i,None,datetime.datetime.now().time(), datetime.datetime.now().date(),i/10.0))
     
     print time.time()
     conn.commit()
+    '''
     print time.time()
 
     cur.execute(u"""select * from data""".encode('mbcs'))
-    print [(x[0], x[1]) for x in cur.description]
+    print cur.description
     #Get results
     
-    for row in cur.fetchmany(5):
+    for row in cur.fetchmany(3):
         for field in row:
             print type(field),
             if isinstance(field, unicode):
@@ -130,7 +129,7 @@ if __name__ == "__main__":
                 print field,
         print ('')
     
-    print (len(cur.fetchall()))
+    #print (len(cur.fetchall()))
     
     cur.close()
     cur = conn.cursor()
@@ -143,6 +142,7 @@ if __name__ == "__main__":
     for row in cur.fetchmany(3):
         for field in row:
             if isinstance(field, unicode):
+                print len(field),
                 print field.encode('mbcs'),
             else:
                 print field,
