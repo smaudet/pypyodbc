@@ -2,15 +2,15 @@
 import sys, os
 import pypyodbc as pypyodbc
 import ctypes
-import time
+import time, datetime
 
 
 def cur_file_dir():
     return os.path.dirname(os.path.realpath(sys.argv[0]))
 
-c_Path = ctypes.create_string_buffer(u"CREATE_DB=.\\e.mdb General\0".encode('mbcs'))
+c_Path = ctypes.create_string_buffer(u"CREATE_DB=.\\e.mdb General\0\0".encode('mbcs'))
 ODBC_ADD_SYS_DSN = 1
-#ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
+ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
 
 
 def u8_enc(v, force_str = False):
@@ -69,9 +69,9 @@ if __name__ == "__main__":
         dsn_test =  'pg'
     user = 'tutti'
 
-    conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True)
+    #conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True)
     #conn = pypyodbc.connect('DSN=PostgreSQL35W')
-    #conn = pypyodbc.connect('DSN=MySQL')
+    conn = pypyodbc.connect('DSN=MSSQL')
     #Dsn list
     #print conn.info
     #Get tables list
@@ -90,22 +90,24 @@ if __name__ == "__main__":
     #cur.close()
 
     cur = conn.cursor()
-    '''
-    if cur.tables(table='data').fetchone():
-        cur.close()
-        cur = conn.cursor()
-        cur.execute('Drop table data;')
-        
+    has_table_data = cur.tables(table='data').fetchone()
+    print has_table_data
+    cur.close()
     
-    cur.execute(u"""create table data (编号 integer, 产品名 memo, 价格 float, 数量 numeric, 
-    日期 timestamp, shijian time, riqi date, kong float)""")
+    
+    cur = conn.cursor()
+    #cur.execute('Drop table data')
+
+        
+
+    cur.execute(u"""create table data (编号 integer, 产品名 text, 价格 float, 数量 numeric, 日期 date, shijian time, riqi date, kong float)""")
     for row in cur.columns(table='data').fetchall():
         print row
     cur.close()
     cur = conn.cursor()
     
     cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)")
-    longtext = u''.join([u'北京天安门']*50)
+    longtext = u''.join([u'北京天安门']*5000)
     cur.execute("insert into data values (?,?,?,?,?,?,?,NULL)", (2, longtext.encode('mbcs'),88.11119, 888.998798,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
     print time.time()
     for i in xrange(3,16000):
@@ -113,7 +115,7 @@ if __name__ == "__main__":
     
     print time.time()
     conn.commit()
-    '''
+    
     print time.time()
 
     cur.execute(u"""select * from data""".encode('mbcs'))

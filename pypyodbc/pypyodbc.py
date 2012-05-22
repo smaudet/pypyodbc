@@ -47,6 +47,9 @@ SQL_HANDLE_DESCR = 4
 SQL_TABLE_NAMES = 3
 SQL_PARAM_INPUT = 1
 SQL_PARAM_INPUT_OUTPUT = 2
+SQL_RESET_PARAMS = 3
+SQL_UNBIND = 2
+SQL_CLOSE = 0
 
 SQL_TYPE_NULL = 0
 SQL_CHAR = 1
@@ -184,7 +187,8 @@ else:
 funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCols","SQLDescribeCol","SQLColAttribute",
         "SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount",
         "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLConnect","SQLTables",
-        "SQLDataSources","SQLFreeHandle","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW","SQLDescribeParam"]
+        "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
+        "SQLDescribeParam"]
     
 for func_name in funcs_with_ret:
     getattr(ODBC_API,func_name).restype = ctypes.c_short
@@ -278,6 +282,7 @@ class Cursor:
         self.autocommit = None
         self._ColTypeCodeList = []
         self._outputsize = {}
+        self._inputsizers = []
         self._stmt_h = ctypes.c_int()
         self.setoutputsize(102400000) #100MB as the defalt buffer size for large column
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self._conx.dbc_h, ADDR(self._stmt_h))
@@ -285,6 +290,7 @@ class Cursor:
     
     def setoutputsize(self, size, column = None):
         self._outputsize[column] = size
+    
     
     
     def execute(self, query_string, params = None):
@@ -325,10 +331,12 @@ class Cursor:
                         ADDR(DecimalDigits), ADDR(Nullable))
                     validate(ret, SQL_HANDLE_STMT, self._stmt_h)
                     '''
-                    ParameterBuffer = ctypes.create_string_buffer(1024)
-                    BufferLen = ctypes.c_long(1024)
+                    buf_size = 1024000 #1MB
+                    self._inputsizers.append(buf_size)
+                    ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                    BufferLen = ctypes.c_long(buf_size)
                     LenOrIndBuf = ctypes.c_long()
-                    ret = ODBC_API.SQLBindParameter(self._stmt_h, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR, 255,\
+                    ret = ODBC_API.SQLBindParameter(self._stmt_h, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, buf_size,\
                              0, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
                     validate(ret, SQL_HANDLE_STMT, self._stmt_h)
                     # Append the value buffer and the lenth buffer to the array
@@ -519,8 +527,20 @@ class Cursor:
         
     def close(self):
         """ Call SQLCloseCursor API to free the statement handle"""
-        ret = ODBC_API.SQLCloseCursor(self._stmt_h)
+        
+        #ret = ODBC_API.SQLCloseCursor(self._stmt_h)
+        #validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        
+        ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_CLOSE)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+        ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_UNBIND)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+        ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_RESET_PARAMS)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+        
         
         if self._stmt_h.value:
             if DEBUGGING: print 's'
