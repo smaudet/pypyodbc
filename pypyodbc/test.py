@@ -3,7 +3,7 @@ import sys, os
 import pypyodbc as pypyodbc
 import ctypes
 import time, datetime
-
+from decimal import Decimal
 
 def cur_file_dir():
     return os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -96,11 +96,12 @@ if __name__ == "__main__":
     
     
     cur = conn.cursor()
-    #cur.execute('Drop table data')
+    if has_table_data:
+        cur.execute('Drop table data')
 
         
 
-    cur.execute(u"""create table data (编号 integer, 产品名 text, 价格 float, 数量 numeric, 日期 date, shijian time, riqi date, kong float)""")
+    cur.execute(u"""create table data (编号 integer, 产品名 text, 数量 numeric(14,2), 价格 float, 日期 date, shijian time, riqi date, kong float)""")
     for row in cur.columns(table='data').fetchall():
         print row
     cur.close()
@@ -108,10 +109,10 @@ if __name__ == "__main__":
     
     cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)")
     longtext = u''.join([u'北京天安门']*5000)
-    cur.execute("insert into data values (?,?,?,?,?,?,?,NULL)", (2, longtext.encode('mbcs'),88.11119, 888.998798,datetime.datetime.now(),datetime.datetime.now().time(), datetime.datetime.now().date()))
+    cur.execute("insert into data values (?,?,?, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)", (2, longtext.encode('mbcs'), Decimal('1233.4513')))
     print time.time()
-    for i in xrange(3,16000):
-        cur.execute("insert into data values (?,?,?,?,?,?,?,?)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk'),88.11119+i, 888.998798-i,None,datetime.datetime.now().time(), datetime.datetime.now().date(),i/10.0))
+    for i in xrange(3,34):
+        cur.execute("insert into data values (?,?,12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk')))
     
     print time.time()
     conn.commit()
@@ -151,11 +152,11 @@ if __name__ == "__main__":
             print '|',
         print ''
     
-    cur.close
+    cur.close()
     #conn.rollback()
     cur = conn.cursor()
     print time.time()
-    cur.execute(u'update data set 数量 = ? where 数量 > 0 ',(str(time.time()),))
+    cur.execute(u'update data set 数量 = ? where 数量 > 0 ',(time.time(),))
     print cur.rowcount
     print time.time()
     conn.commit()
