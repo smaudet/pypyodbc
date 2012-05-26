@@ -23,7 +23,10 @@
 import sys, os, datetime, ctypes
 from decimal import *
 
-DEBUGGING = 1
+DEBUGGING = True
+if DEBUGGING: print 'DEBUGGING'
+# Use editor's replace function to replace "if DEBUGGING" to "#if DEBUGGING" for production
+
 version = '1.0 alpha'
 
 
@@ -215,6 +218,7 @@ def ctrl_err(ht, h, val_ret):
             NativeError, Message, len(Message), ADDR(Buffer_len))
         if ret == SQL_NO_DATA_FOUND:
             #No more data, I can raise
+            if DEBUGGING: print err_list[0][1]
             raise OdbcGenericError, err_list
             break
         elif ret == SQL_INVALID_HANDLE:
@@ -265,6 +269,18 @@ validate(ret, SQL_HANDLE_ENV, shared_env_h)
 # Set the ODBC environment's compatibil leve to ODBC 3.0
 ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 0)
 validate(ret, SQL_HANDLE_ENV, shared_env_h)
+
+
+
+class c_timestamp(ctypes.Structure):
+    _fields_ = [("year", ctypes.c_short),
+                ("month", ctypes.c_ushort),
+                ("day", ctypes.c_ushort),
+                ("hour", ctypes.c_ushort),
+                ("minute", ctypes.c_ushort),
+                ("second", ctypes.c_ushort),
+                ("fraction", ctypes.c_ulong)]
+
 
 
 class Cursor:
@@ -318,8 +334,7 @@ class Cursor:
                 NumParams = ctypes.c_int()
                 ret = ODBC_API.SQLNumParams(self._stmt_h, ADDR(NumParams))
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-                if DEBUGGING:
-                    print ('DEBUGGING: Parameter numbers:' + str(NumParams.value))
+                if DEBUGGING: print ('DEBUGGING: Parameter numbers:' + str(NumParams.value))
                 
                 # Every parameter needs to be binded to a buffer
                 ParamBufferList = []
@@ -334,10 +349,12 @@ class Cursor:
                     validate(ret, SQL_HANDLE_STMT, self._stmt_h)
                     '''
                     prec = 0
+                    buf_size = 1024000
+
                     if param_types[col_num] == int:
                         sql_c_type = SQL_C_LONG             
                         sql_type = SQL_INTEGER
-                        buf_size = 1024000
+                        buf_size = 1024
                         self._inputsizers.append(buf_size)
                         ParameterBuffer = ctypes.c_long()
                         BufferLen = ctypes.c_long(buf_size)
@@ -345,7 +362,7 @@ class Cursor:
                     elif param_types[col_num] == float:
                         sql_c_type = SQL_C_DOUBLE
                         sql_type = SQL_DOUBLE
-                        buf_size = 1024000
+                        buf_size = 1024
                         self._inputsizers.append(buf_size)
                         ParameterBuffer = ctypes.c_double()
                         BufferLen = ctypes.c_long(buf_size)
@@ -353,12 +370,22 @@ class Cursor:
                     elif param_types[col_num] == Decimal:
                         sql_c_type = SQL_C_DOUBLE
                         sql_type = SQL_DOUBLE
-                        buf_size = 1024000
+                        buf_size = 1024
                         self._inputsizers.append(buf_size)
                         ParameterBuffer = ctypes.c_double()
                         BufferLen = ctypes.c_long(buf_size)
                         LenOrIndBuf = ctypes.c_long()
                         prec = 0
+                    elif param_types[col_num] in (datetime.datetime,):
+                        sql_c_type = SQL_C_CHAR
+                        sql_type = SQL_TYPE_TIMESTAMP
+                        buf_size = 23
+                        self._inputsizers.append(buf_size)
+                        ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                        BufferLen = ctypes.c_long(buf_size)
+                        LenOrIndBuf = ctypes.c_long()
+                        prec = 3
+                    
                     else:
                         sql_c_type = SQL_C_CHAR
                         sql_type = SQL_LONGVARCHAR
@@ -390,7 +417,8 @@ class Cursor:
                     if param_val == None:
                         pass
                     elif type(param_val) == datetime.datetime:
-                        c_char_buf = param_val.isoformat().replace('T',' ')[:19]
+                        c_char_buf = param_val.isoformat().replace('T',' ')[:22]
+                        if DEBUGGING: print (type(c_char_buf))
                     elif type(param_val) == datetime.date:
                         c_char_buf = param_val.isoformat()
                     elif type(param_val) == datetime.time:
@@ -399,7 +427,15 @@ class Cursor:
                         c_char_buf = float(param_val)
                     else:
                         c_char_buf = param_val
-                    buf_value.value, buf_len.value = c_char_buf, 1024000
+                    
+                    
+                    if type(param_val) == datetime.datetime:
+                        buf_value.value, buf_len.value = c_char_buf, 22
+                        
+                        if DEBUGGING: print (c_char_buf)
+                    else:
+                        buf_value.value, buf_len.value = c_char_buf, 1024000
+
                     if param_val == None:
                         buf_len.value = -1
                     col_num += 1
