@@ -84,15 +84,19 @@ if __name__ == "__main__":
 
             
 
-        cur.execute(u"""create table data (编号 integer, 产品名 text, 数量 numeric, 价格 float, 日期 datetime, shijian datetime, riqi datetime, kong float)""")
+        cur.execute(u"""create table data (编号 integer,产品名 text,数量 numeric,价格 float,日期 datetime,shijian datetime,riqi datetime, kong float)""")
         for row in cur.columns(table='data').fetchall():
             print row
         cur.close()
         cur = conn.cursor()
         
-        cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)")
+        cur.execute(u"insert into data values(1,'pypyodbc好',12.3,1234.55,'2012-11-21','15:31:32','2012-12-23',NULL)")
         longtext = u''.join([u'我在马路边捡到一分钱']*100)
-        cur.execute("insert into data values (?,?,?,?,?,'15:31:32','2012-12-23',NULL)", (2, longtext.encode('mbcs'), Decimal('1233.4513'), 123.44, datetime.datetime.now()))
+        cur.execute("insert into data values (?,?,?,?,?,'15:31:32','2012-12-23',NULL)", (2, \
+                                longtext.encode('mbcs'),\
+                                Decimal('1233.4513'), \
+                                123.44, \
+                                datetime.datetime.now()))
         print time.time()
         for i in xrange(3,34):
             cur.execute("insert into data values (?,?,12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk')))
