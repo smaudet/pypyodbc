@@ -24,9 +24,8 @@ import sys, os, datetime, ctypes
 from decimal import *
 
 
-# Comment out all "if debugging:" statements like below for production
-DEBUGGING = True
-if DEBUGGING: print 'DEBUGGING'
+# Comment out all "if 'DEBUGGING':" statements like below for production
+if 'DEBUGGING': print 'DEBUGGING'
 
 
 # Set the library location on linux 
@@ -191,7 +190,7 @@ funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCo
         "SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount",
         "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLConnect","SQLTables",
         "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
-        "SQLDescribeParam"]
+        "SQLDescribeParam","SQLGetTypeInfo"]
 for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
 
 
@@ -216,7 +215,7 @@ def ctrl_err(ht, h, val_ret):
             NativeError, Message, len(Message), ADDR(Buffer_len))
         if ret == SQL_NO_DATA_FOUND:
             #No more data, I can raise
-            if DEBUGGING: print err_list[0][1]
+            if 'DEBUGGING': print err_list[0][1]
             raise OdbcGenericError, err_list
             break
         elif ret == SQL_INVALID_HANDLE:
@@ -308,11 +307,14 @@ class Cursor:
         self.setoutputsize(102400000) #100MB as the defalt buffer size for large column
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self._conx.dbc_h, ADDR(self._stmt_h))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+
+        
     
     def setoutputsize(self, size, column = None):
         self._outputsize[column] = size
-    
-    
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
     
     def execute(self, query_string, params = None):
         """ Execute the query string, with optional parameters.
@@ -337,7 +339,7 @@ class Cursor:
                 NumParams = ctypes.c_int()
                 ret = ODBC_API.SQLNumParams(self._stmt_h, ADDR(NumParams))
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-                if DEBUGGING: print ('DEBUGGING: Parameter numbers:' + str(NumParams.value))
+                if 'DEBUGGING': print ('DEBUGGING: Parameter numbers:' + str(NumParams.value))
                 
                 # Every parameter needs to be binded to a buffer
                 ParamBufferList = []
@@ -382,12 +384,12 @@ class Cursor:
                     elif param_types[col_num] in (datetime.datetime,):
                         sql_c_type = SQL_C_CHAR
                         sql_type = SQL_TYPE_TIMESTAMP
-                        buf_size = 23
+                        buf_size = self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][0]
                         self._inputsizers.append(buf_size)
                         ParameterBuffer = ctypes.create_string_buffer(buf_size)
                         BufferLen = ctypes.c_long(buf_size)
                         LenOrIndBuf = ctypes.c_long()
-                        prec = 3
+                        prec = self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][1]
                     
                     else:
                         sql_c_type = SQL_C_CHAR
@@ -420,8 +422,9 @@ class Cursor:
                     if param_val == None:
                         pass
                     elif type(param_val) == datetime.datetime:
-                        c_char_buf = param_val.isoformat().replace('T',' ')[:22]
-                        if DEBUGGING: print (type(c_char_buf))
+                        c_char_buf = param_val.isoformat().replace('T',' ')[:self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][0]]
+                        if 'DEBUGGING': print (type(c_char_buf))
+                        if 'DEBUGGING': print (self._conx.type_size_dict[SQL_TYPE_TIMESTAMP])
                     elif type(param_val) == datetime.date:
                         c_char_buf = param_val.isoformat()
                     elif type(param_val) == datetime.time:
@@ -433,9 +436,8 @@ class Cursor:
                     
                     
                     if type(param_val) == datetime.datetime:
-                        buf_value.value, buf_len.value = c_char_buf, 22
-                        
-                        if DEBUGGING: print (c_char_buf)
+                        buf_value.value, buf_len.value = c_char_buf, self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][0]
+                        if 'DEBUGGING': print (c_char_buf)
                     else:
                         buf_value.value, buf_len.value = c_char_buf, 1024000
 
@@ -460,7 +462,7 @@ class Cursor:
         return (self)
     
     def _UpdateDesc(self):
-        "Get the tuple of (name, type_code, display_size, internal_size, precision, scale, null_ok)"  
+        "Get the information of (name, type_code, display_size, internal_size, precision, scale, null_ok)"  
         Cname = ctypes.create_string_buffer(1024)
         Cname_ptr = ctypes.c_int()
         Ctype_code = ctypes.c_short()
@@ -489,6 +491,7 @@ class Cursor:
 
     
     def _BindCols(self):
+        '''Bind buffers for the record set columns'''
         NOC = self.NumOfCols()
         col_buffer_list = []
 
@@ -500,7 +503,7 @@ class Cursor:
                 default_output_size = self._outputsize[None]
                 totl_buf_len = self._outputsize.get(col_num,default_output_size)
                 
-            if DEBUGGING: print 'binded buffer size: '+ str(totl_buf_len)
+            if 'DEBUGGING': print 'binded buffer size: '+ str(totl_buf_len)
             
             a_buffer = SqlTypes[col_type_code][3](totl_buf_len)
             used_buf_len = ctypes.c_long()
@@ -618,6 +621,18 @@ class Cursor:
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         return
+
+    
+    def get_type_info(self, type = SQL_TYPE_TIMESTAMP):
+        ret = ODBC_API.SQLGetTypeInfo(self._stmt_h, SQL_TYPE_TIMESTAMP)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+    
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        return (self)
+
+
     
     def tables(self, table=None, catalog=None, schema=None, tableType=None):
         """Return a list with all tables"""
@@ -709,6 +724,7 @@ class Connection:
     def __init__(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
         """Init variables and connect to the engine"""
         self.connected = 0
+        self.type_size_dict = {}
         self.unicode_results = False
         self.dbc_h = ctypes.c_int()
         
@@ -765,7 +781,9 @@ class Connection:
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
         self.unicode_results = unicode_results
+        self.update_type_info()
         self.connected = 1
+        
         
 
     def ConnectByDSN(self, dsn, user, passwd = ''):
@@ -782,10 +800,21 @@ class Connection:
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         # Intinalize self._stmt_h, which is the basis of a "cursor"
         self.__set_stmt_h()
+        self.update_type_info()
         self.connected = 1
         
     def cursor(self):
         return Cursor(self)   
+
+    def update_type_info(self):
+        #Get the scale information for SQL_TYPE_TIMESTAMP
+        cur = Cursor(self)
+        info_tuple = cur.get_type_info(SQL_TYPE_TIMESTAMP).fetchone()
+        self.type_size_dict[SQL_TYPE_TIMESTAMP] = info_tuple[2], info_tuple[13]
+        cur.close()
+
+
+
     
     def commit(self):
         SQL_COMMIT = 0
@@ -810,17 +839,17 @@ class Connection:
         
         if self.dbc_h.value:
             if self.connected:
-                if DEBUGGING: print 'disc'
+                if 'DEBUGGING': print 'disc'
                 if not self.autocommit:
                     self.rollback()
                 ret = ODBC_API.SQLDisconnect(self.dbc_h)
                 validate(ret, SQL_HANDLE_DBC, self.dbc_h)
-            if DEBUGGING: print 'dbc'
+            if 'DEBUGGING': print 'dbc'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_DBC, self.dbc_h)
             validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         '''
         if shared_env_h.value:
-            if DEBUGGING: print 'env'
+            if 'DEBUGGING': print 'env'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_ENV, shared_env_h)
             validate(ret, SQL_HANDLE_ENV, shared_env_h)
         '''
