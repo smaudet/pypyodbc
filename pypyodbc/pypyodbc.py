@@ -23,20 +23,32 @@
 import sys, os, datetime, ctypes
 from decimal import *
 
+
+# Comment out all "if debugging:" statements like below for production
 DEBUGGING = True
 if DEBUGGING: print 'DEBUGGING'
-# Use editor's replace function to replace "if DEBUGGING" to "#if DEBUGGING" for production
-
-version = '1.0 alpha'
 
 
 # Set the library location on linux 
 library = "/usr/lib/libodbc.so"
-    
-# Below ODBC constants are defined and widely used in ODBC related programs and documents
-# They are defined in cpp header files: sql.h sqlext.h sqltypes.h sqlucode.h
-# You can get these files from the mingw32-runtime_3.13-1_all.deb package
 
+# Get the References of the platform's ODBC functions via ctypes 
+if sys.platform == 'win32':
+    ODBC_API = ctypes.windll.odbc32
+else:
+    if not os.path.exists(library):
+        raise OdbcNoLibrary, 'Library %s not found' % library
+    try:
+        ODBC_API = ctypes.cdll.LoadLibrary(library)
+    except:
+        raise OdbcLibraryError, 'Error while loading %s' % library
+
+
+
+
+# Define ODBC constants. They are widly used in ODBC documents and programs
+# They are defined in cpp header files: sql.h sqlext.h sqltypes.h sqlucode.h
+# and you can get these files from the mingw32-runtime_3.13-1_all.deb package
 SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2, SQL_OV_ODBC3 = 200, 2, 3
 SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
 SQL_NULL_HANDLE, SQL_HANDLE_ENV, SQL_HANDLE_DBC, SQL_HANDLE_STMT = 0, 1, 2, 3
@@ -174,31 +186,17 @@ class OdbcGenericError(Exception):
 
 
 
-# Get the References of the platform's ODBC functions via ctypes 
-if sys.platform == 'win32':
-    ODBC_API = ctypes.windll.odbc32
-else:
-    if not os.path.exists(library):
-        raise OdbcNoLibrary, 'Library %s not found' % library
-    try:
-        ODBC_API = ctypes.cdll.LoadLibrary(library)
-    except:
-        raise OdbcLibraryError, 'Error while loading %s' % library
-
-# Define the return type for ODBC functions with ret result.
-
+# Define the python return type for ODBC functions with ret result.
 funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCols","SQLDescribeCol","SQLColAttribute",
         "SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount",
         "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLConnect","SQLTables",
         "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
         "SQLDescribeParam"]
-    
-for func_name in funcs_with_ret:
-    getattr(ODBC_API,func_name).restype = ctypes.c_short
+for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
 
 
 
-# Set the alias for the ctypes get reference function for beter code readbility or performance.
+# Set the alias for the ctypes functions for beter code readbility or performance.
 ADDR = ctypes.byref
 SQLFetch =ODBC_API.SQLFetch
 
@@ -271,7 +269,9 @@ ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 
 validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
 
+version = '1.0 alpha'
 
+'''
 class c_timestamp(ctypes.Structure):
     _fields_ = [("year", ctypes.c_short),
                 ("month", ctypes.c_ushort),
@@ -281,8 +281,12 @@ class c_timestamp(ctypes.Structure):
                 ("second", ctypes.c_ushort),
                 ("fraction", ctypes.c_ulong)]
 
+'''
 
 
+'''
+The Cursor Class.
+'''
 class Cursor:
     def __init__(self, conx):
         """ Initialize self._stmt_h, which is the handle of a statement
@@ -316,8 +320,7 @@ class Cursor:
         If parameters are not provided, only th query sting, it would be executed directly 
         """
         if params != None:
-            # If parameters are provided, then first prepare the query 
-            # and then executed with parameters
+            # If parameters exist, first prepare the query then executed with parameters
             if not type(params) in (tuple, list):
                 raise Exception
             param_types = [type(p) for p in params]

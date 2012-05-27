@@ -185,4 +185,6 @@ if __name__ == "__main__":
     conn.close()
     import cProfile
     cProfile.run('prof_func()')
+    print ('End of testing')
+    time.sleep(3)
     
