@@ -55,6 +55,9 @@ SQL_NULL_HANDLE, SQL_HANDLE_ENV, SQL_HANDLE_DBC, SQL_HANDLE_STMT = 0, 1, 2, 3
 SQL_SUCCESS, SQL_SUCCESS_WITH_INFO = 0, 1
 SQL_ATTR_AUTOCOMMIT = 102
 SQL_AUTOCOMMIT_OFF, SQL_AUTOCOMMIT_ON = 0, 1
+SQL_IS_UINTEGER = -5
+SQL_ATTR_LOGIN_TIMEOUT = 103
+
 
 SQL_COLUMN_DISPLAY_SIZE = 6
 SQL_INVALID_HANDLE = -2
@@ -94,6 +97,7 @@ SQL_WLONGVARCHAR = -10
 SQL_TYPE_DATE = 91
 SQL_TYPE_TIME = 92
 SQL_TYPE_TIMESTAMP = 93
+SQL_ALL_TYPES = 0
 
 SQL_C_CHAR = SQL_CHAR
 SQL_C_NUMERIC = SQL_NUMERIC
@@ -273,17 +277,14 @@ validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
 version = '1.0 alpha'
 
-'''
-class c_timestamp(ctypes.Structure):
+
+class c_date(ctypes.Structure):
     _fields_ = [("year", ctypes.c_short),
                 ("month", ctypes.c_ushort),
                 ("day", ctypes.c_ushort),
-                ("hour", ctypes.c_ushort),
-                ("minute", ctypes.c_ushort),
-                ("second", ctypes.c_ushort),
-                ("fraction", ctypes.c_ulong)]
+                ]
 
-'''
+
 
 
 '''
@@ -310,6 +311,7 @@ class Cursor:
         self.setoutputsize(102400000) #100MB as the defalt buffer size for large column
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self._conx.dbc_h, ADDR(self._stmt_h))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        self.closed = False
 
 
         
@@ -384,15 +386,24 @@ class Cursor:
                         BufferLen = ctypes.c_long(buf_size)
                         LenOrIndBuf = ctypes.c_long()
                         prec = 0
-                    elif param_types[col_num] in (datetime.datetime,):
+                    elif param_types[col_num] == datetime.datetime:
                         sql_c_type = SQL_C_CHAR
                         sql_type = SQL_TYPE_TIMESTAMP
-                        buf_size = self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][0]
+                        buf_size = self._conx.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                         self._inputsizers.append(buf_size)
                         ParameterBuffer = ctypes.create_string_buffer(buf_size)
                         BufferLen = ctypes.c_long(buf_size)
                         LenOrIndBuf = ctypes.c_long()
-                        prec = self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][1]
+                        prec = self._conx.type_size_dic[SQL_TYPE_TIMESTAMP][1]
+                    elif param_types[col_num] == datetime.date:
+                        sql_c_type = SQL_C_CHAR
+                        sql_type = SQL_TYPE_TIMESTAMP #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                        buf_size = 10
+                        self._inputsizers.append(buf_size)
+                        ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                        BufferLen = ctypes.c_long(buf_size)
+                        LenOrIndBuf = ctypes.c_long()
+                        prec = 0
                     
                     else:
                         sql_c_type = SQL_C_CHAR
@@ -419,16 +430,17 @@ class Cursor:
             else:
                 # With query prepared, now put parameters into buffers
                 col_num = 0
-                for buf_value, buf_len in self._ParamBufferList:
-                    c_char_buf = ''
+                for param_buffer, param_buffer_len in self._ParamBufferList:
+                    c_char_buf, c_buf_len = '', 1024000
                     param_val = params[col_num]
                     if param_val == None:
-                        pass
+                        c_buf_len = -1
                     elif type(param_val) == datetime.datetime:
-                        c_char_buf = param_val.isoformat().replace('T',' ')[:self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][0]]
-                        if DEBUG: print (self._conx.type_size_dict[SQL_TYPE_TIMESTAMP])
+                        c_buf_len = self._conx.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                        c_char_buf = param_val.isoformat().replace('T',' ')[:c_buf_len]
                     elif type(param_val) == datetime.date:
-                        c_char_buf = param_val.isoformat()
+                        c_buf_len = 10
+                        c_char_buf = param_val.isoformat().replace('T',' ')[:c_buf_len]
                     elif type(param_val) == datetime.time:
                         c_char_buf = param_val.isoformat()[0:8]
                     elif type(param_val) == Decimal:
@@ -436,15 +448,8 @@ class Cursor:
                     else:
                         c_char_buf = param_val
                     
-                    
-                    if type(param_val) == datetime.datetime:
-                        buf_value.value, buf_len.value = c_char_buf, self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][0]
-                        if DEBUG: print (c_char_buf)
-                    else:
-                        buf_value.value, buf_len.value = c_char_buf, 1024000
+                    param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
 
-                    if param_val == None:
-                        buf_len.value = -1
                     col_num += 1
                     #print c_char_buf
     
@@ -622,11 +627,23 @@ class Cursor:
         ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_STMT, self._stmt_h)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
+        self.closed = True
         return
-
     
-    def get_type_info(self, type = SQL_TYPE_TIMESTAMP):
-        ret = ODBC_API.SQLGetTypeInfo(self._stmt_h, SQL_TYPE_TIMESTAMP)
+    def __del__(self):  
+        if not self.closed:
+            try:
+                self.close()
+            except:
+                pass
+            if DEBUG: print 'auto closing cursor'
+    
+    def getTypeInfo(self, sqlType = None):
+        if sqlType == None:
+            type = SQL_ALL_TYPES
+        else:
+            type = sqlType
+        ret = ODBC_API.SQLGetTypeInfo(self._stmt_h, type)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
     
         self.NumOfRows()
@@ -726,7 +743,7 @@ class Connection:
     def __init__(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
         """Init variables and connect to the engine"""
         self.connected = 0
-        self.type_size_dict = {}
+        self.type_size_dic = {}
         self.unicode_results = False
         self.dbc_h = ctypes.c_int()
         
@@ -756,8 +773,7 @@ class Connection:
 
         # Before we establish the connection by the connection string
         # Set the connection's attribute of "timeout" (Actully LOGIN_TIMEOUT)
-        SQL_IS_UINTEGER = -5
-        SQL_ATTR_LOGIN_TIMEOUT = 103
+
         
         if timeout != 0:
             ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_LOGIN_TIMEOUT, timeout, SQL_IS_UINTEGER);
@@ -797,8 +813,7 @@ class Connection:
         
         ret = ODBC_API.SQLConnect(self.dbc_h, sn, len(sn), un, len(un), pw, len(pw))
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
-        # Intinalize self._stmt_h, which is the basis of a "cursor"
-        self.__set_stmt_h()
+
         self.update_type_info()
         self.connected = 1
         
@@ -808,8 +823,35 @@ class Connection:
     def update_type_info(self):
         #Get the scale information for SQL_TYPE_TIMESTAMP
         cur = Cursor(self)
-        info_tuple = cur.get_type_info(SQL_TYPE_TIMESTAMP).fetchone()
-        self.type_size_dict[SQL_TYPE_TIMESTAMP] = info_tuple[2], info_tuple[13]
+        info_tuple = cur.getTypeInfo(SQL_TYPE_TIMESTAMP).fetchone()
+        if info_tuple != None:
+            self.type_size_dic[SQL_TYPE_TIMESTAMP] = info_tuple[2], info_tuple[13]
+        cur.close()
+        
+        cur = Cursor(self)
+        info_tuple = cur.getTypeInfo(SQL_TYPE_TIME).fetchone()
+        if info_tuple != None:        
+            self.type_size_dic[SQL_TYPE_TIME] = info_tuple[2], info_tuple[13]
+        cur.close()
+        
+        
+        cur = Cursor(self)
+        if DEBUG: print 'SQL_TYPE_DATE:',
+        info_tuple = cur.getTypeInfo(SQL_TYPE_DATE).fetchone()
+        if info_tuple != None:        
+            self.type_size_dic[SQL_TYPE_DATE] = info_tuple[2], info_tuple[13]
+            
+            if DEBUG: print info_tuple[2], info_tuple[13]
+        cur.close()
+        
+        
+        cur = Cursor(self)
+        info_tuple = cur.getTypeInfo(SQL_TIME).fetchone()
+        if info_tuple != None:        
+            self.type_size_dic[SQL_TIME] = info_tuple[2], info_tuple[13]
+        
+        
+        
         cur.close()
 
 
@@ -838,7 +880,7 @@ class Connection:
         
         if self.dbc_h.value:
             if self.connected:
-                if DEBUG: print 'disc'
+                if DEBUG: print 'disconnect'
                 if not self.autocommit:
                     self.rollback()
                 ret = ODBC_API.SQLDisconnect(self.dbc_h)

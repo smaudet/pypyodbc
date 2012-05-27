@@ -56,7 +56,7 @@ def prof_func():
 
 
 if __name__ == "__main__":
-    pypyodbc.DEBUG = 0
+    pypyodbc.DEBUG = 1
     DSN_list = pypyodbc.dataSources()
     print (DSN_list)
     
@@ -67,11 +67,24 @@ if __name__ == "__main__":
     user = 'tutti'
 
     conxs = [\
-        pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True),
+        #pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True),
         #pypyodbc.connect('DSN=PostgreSQL35W'),
-        pypyodbc.connect('DSN=MSSQL')]
+        pypyodbc.connect('DSN=MSSQL'),
+        ]
     
     for conn in conxs:
+        
+        cur = conn.cursor()
+        for row in (cur.getTypeInfo().fetchall()):
+            i = 1
+            for field in row:
+                print i,
+                print field
+                i += 1
+        cur = None
+        
+        
+        
         cur = conn.cursor()
         has_table_data = cur.tables(table='data').fetchone()
         print has_table_data
@@ -84,19 +97,20 @@ if __name__ == "__main__":
 
             
 
-        cur.execute(u"""create table data (编号 integer,产品名 text,数量 numeric,价格 float,日期 datetime,shijian datetime,riqi datetime, kong float)""")
+        cur.execute(u"""create table data (编号 integer,产品名 text,数量 numeric,价格 float,日期 datetime,shijian time,riqi date, kong float)""")
         for row in cur.columns(table='data').fetchall():
             print row
         cur.close()
         cur = conn.cursor()
         
-        cur.execute(u"insert into data values(1,'pypyodbc好',12.3,1234.55,'2012-11-21','15:31:32','2012-12-23',NULL)")
+        cur.execute(u"insert into data values(1,'pypyodbc好',12.3,1234.55,'2012-11-21','17:31:32','2012-12-23',NULL)")
         longtext = u''.join([u'我在马路边捡到一分钱']*100)
-        cur.execute("insert into data values (?,?,?,?,?,'15:31:32','2012-12-23',NULL)", (2, \
+        cur.execute("insert into data values (?,?,?,?,?,'15:31:32',?,NULL)", (2, \
                                 longtext.encode('mbcs'),\
                                 Decimal('1233.4513'), \
                                 123.44, \
-                                datetime.datetime.now()))
+                                datetime.datetime.now(),\
+                                datetime.date.today()))
         print time.time()
         for i in xrange(3,34):
             cur.execute("insert into data values (?,?,12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk')))
@@ -171,13 +185,7 @@ if __name__ == "__main__":
         cur.close()
         import cProfile
         #cProfile.run('prof_func()')
-        cur = conn.cursor()
-        for row in (cur.get_type_info().fetchall()):
-            i = 1
-            for field in row:
-                print i,
-                print field
-                i += 1
+
         conn.close()
     print ('End of testing')
     time.sleep(3)
