@@ -33,7 +33,7 @@ def u8_enc(v, force_str = False):
 def prof_func():
     conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True)
     cur = conn.cursor()
-    cur.execute(u"""select * from data""")
+    cur.execute(u"""select * from pypyodbc_test_data""")
 
     i = 0
     row = cur.fetchone()
@@ -67,13 +67,27 @@ if __name__ == "__main__":
     user = 'tutti'
 
     conxs = [\
-        #pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True),
-        #pypyodbc.connect('DSN=PostgreSQL35W'),
-        pypyodbc.connect('DSN=MSSQL'),
+        (pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True),
+        u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
+                datetime,shijian time,riqi datetime, kong float)""",
+        ),
+        (pypyodbc.connect('DSN=MSSQL'),
+        u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
+                datetime,shijian time,riqi date, kong float)""",
+        ),
+#        (pypyodbc.connect('DSN=MYSQL'),
+#        u"""create table pypyodbc_test_data (编号 integer,d nvarchar(255),数量 numeric,价格 float,日期 
+#                datetime,shijian time,riqi date, kong float)""",
+#        
+#        ),
+        (pypyodbc.connect('DSN=PostgreSQL35W'),
+        u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
+                        timestamp,shijian time,riqi date, kong float)""",
+        ),
         ]
     
-    for conn in conxs:
-        
+    for conn, create_table_sql in conxs:
+        '''
         cur = conn.cursor()
         for row in (cur.getTypeInfo().fetchall()):
             i = 1
@@ -82,45 +96,50 @@ if __name__ == "__main__":
                 print field
                 i += 1
         cur = None
-        
+        '''
         
         
         cur = conn.cursor()
         has_table_data = cur.tables(table='data').fetchone()
-        print has_table_data
+        print 'has table "data"?' + str(has_table_data)
         cur.close()
         
         
         cur = conn.cursor()
-        if has_table_data:
-            cur.execute('Drop table data')
+        try:
+            cur.execute('Drop table pypyodbc_test_data;')
+        except:
+            pass
 
             
 
-        cur.execute(u"""create table data (编号 integer,产品名 text,数量 numeric,价格 float,日期 datetime,shijian time,riqi date, kong float)""")
+        cur.execute(create_table_sql)
         for row in cur.columns(table='data').fetchall():
             print row
         cur.close()
         cur = conn.cursor()
         
-        cur.execute(u"insert into data values(1,'pypyodbc好',12.3,1234.55,'2012-11-21','17:31:32','2012-12-23',NULL)")
-        longtext = u''.join([u'我在马路边捡到一分钱']*100)
-        cur.execute("insert into data values (?,?,?,?,?,'15:31:32',?,NULL)", (2, \
-                                longtext.encode('mbcs'),\
+        cur.execute(u"insert into pypyodbc_test_data values(1,'pypyodbc好',12.3,1234.55,?,'17:31:32','2012-12-23',NULL)", (datetime.datetime.now(),))
+        longtext = u''.join([u'我在马路边捡到一分钱']*1)
+        cur.execute("insert into pypyodbc_test_data values (?,?,?,?,?,?,?,NULL)", \
+                                (2, \
+                                'mbcs',\
                                 Decimal('1233.4513'), \
                                 123.44, \
-                                datetime.datetime.now(),\
-                                datetime.date.today()))
+                                datetime.datetime.now(), \
+                                datetime.datetime.now().time(),\
+                                datetime.date.today(),\
+                                ))
         print time.time()
-        for i in xrange(3,34):
-            cur.execute("insert into data values (?,?,12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk')))
+        for i in xrange(3,32):
+            cur.execute("insert into pypyodbc_test_data values (?,?,12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk')))
         
         print time.time()
         conn.commit()
         
         print time.time()
 
-        cur.execute(u"""select * from data""".encode('mbcs'))
+        cur.execute(u"""select * from pypyodbc_test_data""".encode('mbcs'))
         print cur.description
         #Get results
         
@@ -137,9 +156,9 @@ if __name__ == "__main__":
         
         cur.close()
         cur = conn.cursor()
-        #cur.execute(u"delete from data ".encode('mbcs'))
+        #cur.execute(u"delete from pypyodbc_test_data ".encode('mbcs'))
         
-        cur.execute(u"""select * from data""".encode('mbcs'))
+        cur.execute(u"""select * from pypyodbc_test_data""".encode('mbcs'))
 
         #Get results
         
@@ -157,11 +176,11 @@ if __name__ == "__main__":
         #conn.rollback()
         cur = conn.cursor()
         print time.time()
-        cur.execute(u'update data set 数量 = ? where 数量 > 0 ',(time.time(),))
+        cur.execute(u'update pypyodbc_test_data set 数量 = ? where 数量 > 0 ',(time.time(),))
         print cur.rowcount
         print time.time()
         conn.commit()
-        for field in cur.execute(u"""select * from data""").fetchone():
+        for field in cur.execute(u"""select * from pypyodbc_test_data""").fetchone():
             if isinstance(field, unicode):
                 print field.encode('mbcs'),
             else:

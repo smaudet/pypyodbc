@@ -397,18 +397,48 @@ class Cursor:
                         prec = self._conx.type_size_dic[SQL_TYPE_TIMESTAMP][1]
                     elif param_types[col_num] == datetime.date:
                         sql_c_type = SQL_C_CHAR
-                        sql_type = SQL_TYPE_TIMESTAMP #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
-                        buf_size = 10
-                        self._inputsizers.append(buf_size)
-                        ParameterBuffer = ctypes.create_string_buffer(buf_size)
-                        BufferLen = ctypes.c_long(buf_size)
-                        LenOrIndBuf = ctypes.c_long()
-                        prec = 0
+                        if self._conx.type_size_dic.has_key(SQL_TYPE_DATE):
+                            if DEBUG: print 'conx.type_size_dic.has_key(SQL_TYPE_DATE)'
+                            sql_type = SQL_TYPE_DATE #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                            buf_size = self._conx.type_size_dic[SQL_TYPE_DATE][0]
+                            self._inputsizers.append(buf_size)
+                            ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                            BufferLen = ctypes.c_long(buf_size)
+                            LenOrIndBuf = ctypes.c_long()
+                            prec = self._conx.type_size_dic[SQL_TYPE_DATE][1]
+                            
+                        else:
+                            sql_type = SQL_TYPE_TIMESTAMP #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                            buf_size = 10
+                            self._inputsizers.append(buf_size)
+                            ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                            BufferLen = ctypes.c_long(buf_size)
+                            LenOrIndBuf = ctypes.c_long()
+                            prec = 0
+                    elif param_types[col_num] == datetime.time:
+                        sql_c_type = SQL_C_CHAR
+                        if self._conx.type_size_dic.has_key(SQL_TYPE_TIME):
+                            sql_type = SQL_TYPE_TIME #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                            buf_size = self._conx.type_size_dic[SQL_TYPE_TIME][0]
+                            self._inputsizers.append(buf_size)
+                            ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                            BufferLen = ctypes.c_long(buf_size)
+                            LenOrIndBuf = ctypes.c_long()
+                            prec = self._conx.type_size_dic[SQL_TYPE_TIME][1]
+                            
+                        else:
+                            sql_type = SQL_TYPE_TIMESTAMP #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                            buf_size = self._conx.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                            self._inputsizers.append(buf_size)
+                            ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                            BufferLen = ctypes.c_long(buf_size)
+                            LenOrIndBuf = ctypes.c_long()
+                            prec = 3
                     
                     else:
                         sql_c_type = SQL_C_CHAR
                         sql_type = SQL_LONGVARCHAR
-                        buf_size = 1024000 #1MB
+                        buf_size = 102400 #1MB
                         self._inputsizers.append(buf_size)
                         ParameterBuffer = ctypes.create_string_buffer(buf_size)
                         BufferLen = ctypes.c_long(buf_size)
@@ -431,7 +461,7 @@ class Cursor:
                 # With query prepared, now put parameters into buffers
                 col_num = 0
                 for param_buffer, param_buffer_len in self._ParamBufferList:
-                    c_char_buf, c_buf_len = '', 1024000
+                    c_char_buf, c_buf_len = '', 102400
                     param_val = params[col_num]
                     if param_val == None:
                         c_buf_len = -1
@@ -439,10 +469,17 @@ class Cursor:
                         c_buf_len = self._conx.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                         c_char_buf = param_val.isoformat().replace('T',' ')[:c_buf_len]
                     elif type(param_val) == datetime.date:
-                        c_buf_len = 10
-                        c_char_buf = param_val.isoformat().replace('T',' ')[:c_buf_len]
+                        c_buf_len = self._conx.type_size_dic.get(SQL_TYPE_DATE,[10])[0]
+                        c_char_buf = param_val.isoformat()[:c_buf_len]
+                        if DEBUG: print c_char_buf
                     elif type(param_val) == datetime.time:
-                        c_char_buf = param_val.isoformat()[0:8]
+                        if self._conx.type_size_dic.has_key(SQL_TYPE_TIME):
+                            c_buf_len = self._conx.type_size_dic[SQL_TYPE_TIME][0]
+                            c_char_buf = param_val.isoformat()[0:c_buf_len]
+                        else:
+                            c_buf_len = self._conx.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                            c_char_buf = '1900-01-01 '+param_val.isoformat()[0:c_buf_len - 11]
+                        if DEBUG: print c_buf_len, c_char_buf
                     elif type(param_val) == Decimal:
                         c_char_buf = float(param_val)
                     else:
@@ -632,11 +669,15 @@ class Cursor:
     
     def __del__(self):  
         if not self.closed:
+            if DEBUG: print 'auto closing cursor: ',
             try:
                 self.close()
             except:
+                if DEBUG: print 'failed'
                 pass
-            if DEBUG: print 'auto closing cursor'
+            else:
+                if DEBUG: print 'succeed'
+                pass
     
     def getTypeInfo(self, sqlType = None):
         if sqlType == None:
