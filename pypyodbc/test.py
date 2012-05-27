@@ -32,10 +32,7 @@ def u8_enc(v, force_str = False):
 
 def prof_func():
     conn = pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True)
-
     cur = conn.cursor()
-
-
     cur.execute(u"""select * from data""")
 
     i = 0
@@ -59,7 +56,7 @@ def prof_func():
 
 
 if __name__ == "__main__":
-    
+    pypyodbc.DEBUG = 0
     DSN_list = pypyodbc.dataSources()
     print (DSN_list)
     
@@ -94,7 +91,7 @@ if __name__ == "__main__":
         cur = conn.cursor()
         
         cur.execute(u"insert into data values (1, 'pypyodbc好', 12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)")
-        longtext = u''.join([u'北京天安门']*5)
+        longtext = u''.join([u'我在马路边捡到一分钱']*100)
         cur.execute("insert into data values (?,?,?,?,?,'15:31:32','2012-12-23',NULL)", (2, longtext.encode('mbcs'), Decimal('1233.4513'), 123.44, datetime.datetime.now()))
         print time.time()
         for i in xrange(3,34):

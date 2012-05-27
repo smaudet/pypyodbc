@@ -23,9 +23,9 @@
 import sys, os, datetime, ctypes
 from decimal import *
 
-
-# Comment out all "if 'DEBUGGING':" statements like below for production
-if 'DEBUGGING': print 'DEBUGGING'
+DEBUG = 0
+# Comment out all "if DEBUG:" statements like below for production
+if DEBUG: print 'DEBUGGING'
 
 
 # Set the library location on linux 
@@ -49,9 +49,12 @@ else:
 # They are defined in cpp header files: sql.h sqlext.h sqltypes.h sqlucode.h
 # and you can get these files from the mingw32-runtime_3.13-1_all.deb package
 SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2, SQL_OV_ODBC3 = 200, 2, 3
+SQL_DRIVER_NOPROMPT = 0
 SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
 SQL_NULL_HANDLE, SQL_HANDLE_ENV, SQL_HANDLE_DBC, SQL_HANDLE_STMT = 0, 1, 2, 3
 SQL_SUCCESS, SQL_SUCCESS_WITH_INFO = 0, 1
+SQL_ATTR_AUTOCOMMIT = 102
+SQL_AUTOCOMMIT_OFF, SQL_AUTOCOMMIT_ON = 0, 1
 
 SQL_COLUMN_DISPLAY_SIZE = 6
 SQL_INVALID_HANDLE = -2
@@ -215,7 +218,7 @@ def ctrl_err(ht, h, val_ret):
             NativeError, Message, len(Message), ADDR(Buffer_len))
         if ret == SQL_NO_DATA_FOUND:
             #No more data, I can raise
-            if 'DEBUGGING': print err_list[0][1]
+            if DEBUG: print err_list[0][1]
             raise OdbcGenericError, err_list
             break
         elif ret == SQL_INVALID_HANDLE:
@@ -339,7 +342,7 @@ class Cursor:
                 NumParams = ctypes.c_int()
                 ret = ODBC_API.SQLNumParams(self._stmt_h, ADDR(NumParams))
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-                if 'DEBUGGING': print ('DEBUGGING: Parameter numbers:' + str(NumParams.value))
+                if DEBUG: print ('DEBUGGING: Parameter numbers:' + str(NumParams.value))
                 
                 # Every parameter needs to be binded to a buffer
                 ParamBufferList = []
@@ -423,8 +426,7 @@ class Cursor:
                         pass
                     elif type(param_val) == datetime.datetime:
                         c_char_buf = param_val.isoformat().replace('T',' ')[:self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][0]]
-                        if 'DEBUGGING': print (type(c_char_buf))
-                        if 'DEBUGGING': print (self._conx.type_size_dict[SQL_TYPE_TIMESTAMP])
+                        if DEBUG: print (self._conx.type_size_dict[SQL_TYPE_TIMESTAMP])
                     elif type(param_val) == datetime.date:
                         c_char_buf = param_val.isoformat()
                     elif type(param_val) == datetime.time:
@@ -437,7 +439,7 @@ class Cursor:
                     
                     if type(param_val) == datetime.datetime:
                         buf_value.value, buf_len.value = c_char_buf, self._conx.type_size_dict[SQL_TYPE_TIMESTAMP][0]
-                        if 'DEBUGGING': print (c_char_buf)
+                        if DEBUG: print (c_char_buf)
                     else:
                         buf_value.value, buf_len.value = c_char_buf, 1024000
 
@@ -503,7 +505,7 @@ class Cursor:
                 default_output_size = self._outputsize[None]
                 totl_buf_len = self._outputsize.get(col_num,default_output_size)
                 
-            if 'DEBUGGING': print 'binded buffer size: '+ str(totl_buf_len)
+            if DEBUG: print self.description[col_num][0]+' binded buffer size: '+ str(totl_buf_len)
             
             a_buffer = SqlTypes[col_type_code][3](totl_buf_len)
             used_buf_len = ctypes.c_long()
@@ -765,16 +767,13 @@ class Connection:
         # Create one connection with a connect string by calling SQLDriverConnect
         # and make self.dbc_h the handle of this connection
         c_connectString = ctypes.create_string_buffer(self.connectString)
-        SQL_DRIVER_NOPROMPT = 0
-        
+
         ret = ODBC_API.SQLDriverConnect(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
         # Set the connection's attribute of "autocommit" 
         #
         
-        SQL_ATTR_AUTOCOMMIT = 102
-        SQL_AUTOCOMMIT_OFF, SQL_AUTOCOMMIT_ON = 0, 1
         self.autocommit = autocommit
         
         ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_AUTOCOMMIT, self.autocommit and SQL_AUTOCOMMIT_ON or SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER)
@@ -839,17 +838,17 @@ class Connection:
         
         if self.dbc_h.value:
             if self.connected:
-                if 'DEBUGGING': print 'disc'
+                if DEBUG: print 'disc'
                 if not self.autocommit:
                     self.rollback()
                 ret = ODBC_API.SQLDisconnect(self.dbc_h)
                 validate(ret, SQL_HANDLE_DBC, self.dbc_h)
-            if 'DEBUGGING': print 'dbc'
+            if DEBUG: print 'dbc'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_DBC, self.dbc_h)
             validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         '''
         if shared_env_h.value:
-            if 'DEBUGGING': print 'env'
+            if DEBUG: print 'env'
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_ENV, shared_env_h)
             validate(ret, SQL_HANDLE_ENV, shared_env_h)
         '''
