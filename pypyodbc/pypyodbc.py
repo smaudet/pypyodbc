@@ -442,7 +442,7 @@ class Cursor:
                         ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
                         BufferLen = ctypes.c_long(buf_size)
                         LenOrIndBuf = ctypes.c_long()
-                        prec = 3
+                        prec = 0
                     else:
                         sql_c_type = SQL_C_CHAR
                         sql_type = SQL_LONGVARCHAR
@@ -500,12 +500,18 @@ class Cursor:
                         if DEBUG: print c_buf_len, c_char_buf
                     elif type(param_val) == Decimal:
                         c_char_buf = float(param_val)
-                    elif type(param_val) in (str, unicode):
+                    elif type(param_val) == str:
                         c_char_buf = param_val
                         c_buf_len = len(param_val)
+                    elif type(param_val) == unicode:
+                        c_char_buf = param_val
+                        c_buf_len = len(param_val)
+                        if DEBUG: print c_buf_len
                     else:
                         c_char_buf = param_val
                     param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
+                    if type(param_val) == unicode:
+                        param_buffer_len.value = len(param_buffer)
 
                     col_num += 1
                     #print c_char_buf

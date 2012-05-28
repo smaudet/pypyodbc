@@ -125,7 +125,7 @@ if __name__ == "__main__":
         cur = conn.cursor()
         
         cur.execute(u"insert into pypyodbc_test_data values(1,'pypyodbc',12.3,1234.55,?,'17:31:32','2012-12-23',NULL)", (datetime.datetime.now(),))
-        longtext = u''.join([u'我在马路边捡到一分钱']*988)
+        longtext = u''.join([u'我在马路边x捡到一分钱']*8)
         cur.execute("insert into pypyodbc_test_data values (?,?,?,?,?,?,?,NULL)", \
                                 (2, \
                                 longtext,\
@@ -136,10 +136,10 @@ if __name__ == "__main__":
                                 datetime.date.today(),\
                                 ))
         print time.time()
-        for i in xrange(3,19000):
-            cur.execute("""insert into pypyodbc_test_data values 
+        for i in xrange(3,190):
+            cur.execute(u"""insert into pypyodbc_test_data values 
             (?,?,12.3, 1234.55, ?,?,'2012-12-23',NULL)""", 
-            (i, u'X哦X'+unicode(i%100), datetime.datetime.now(), datetime.datetime.now().time()))
+            (i, "巴萨的法尔.".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()))
         
         print time.time()
         conn.commit()
