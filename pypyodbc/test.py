@@ -67,26 +67,30 @@ if __name__ == "__main__":
     user = 'tutti'
 
     conxs = [\
-        (pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True),
+        ('Access',
+        pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True),
         u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi datetime, kong float)""",
         ),
-        (pypyodbc.connect('DSN=MSSQL'),
+        ('SQLServer',
+        pypyodbc.connect('DSN=MSSQL'),
         u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi date, kong float)""",
         ),
-        (pypyodbc.connect('DSN=MYSQL'),
+        ('MySQL',
+        pypyodbc.connect('DSN=MYSQL'),
         u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi date, kong float)""",
         
         ),
-        (pypyodbc.connect('DSN=PostgreSQL35W'),
+        ('PostgreSQL',
+        pypyodbc.connect('DSN=PostgreSQL35W'),
         u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
                         timestamp,shijian time,riqi date, kong float)""",
         ),
         ]
     
-    for conn, create_table_sql in conxs:
+    for db_desc, conn, create_table_sql in conxs:
         '''
         cur = conn.cursor()
         for row in (cur.getTypeInfo().fetchall()):
@@ -111,16 +115,17 @@ if __name__ == "__main__":
         except:
             pass
 
-            
+        print db_desc
 
         cur.execute(create_table_sql)
+        conn.commit()
         for row in cur.columns(table='data').fetchall():
             print row
         cur.close()
         cur = conn.cursor()
         
-        cur.execute(u"insert into pypyodbc_test_data values(1,'pypyodbc好',12.3,1234.55,?,'17:31:32','2012-12-23',NULL)", (datetime.datetime.now(),))
-        longtext = u''.join([u'我在马路边捡到一分钱']*1)
+        cur.execute(u"insert into pypyodbc_test_data values(1,'pypyodbc',12.3,1234.55,?,'17:31:32','2012-12-23',NULL)", (datetime.datetime.now(),))
+        longtext = u''.join([u'我在马路边捡到一分钱']*988)
         cur.execute("insert into pypyodbc_test_data values (?,?,?,?,?,?,?,NULL)", \
                                 (2, \
                                 longtext,\
@@ -131,8 +136,10 @@ if __name__ == "__main__":
                                 datetime.date.today(),\
                                 ))
         print time.time()
-        for i in xrange(3,32):
-            cur.execute("insert into pypyodbc_test_data values (?,?,12.3, 1234.55, '2012-11-21','15:31:32','2012-12-23',NULL)", (i, (u'X哦X'+unicode(i%10000)).encode('gbk')))
+        for i in xrange(3,19000):
+            cur.execute("""insert into pypyodbc_test_data values 
+            (?,?,12.3, 1234.55, ?,?,'2012-12-23',NULL)""", 
+            (i, u'X哦X'+unicode(i%100), datetime.datetime.now(), datetime.datetime.now().time()))
         
         print time.time()
         conn.commit()
@@ -176,7 +183,7 @@ if __name__ == "__main__":
         #conn.rollback()
         cur = conn.cursor()
         print time.time()
-        cur.execute(u'update pypyodbc_test_data set 数量 = ? where 数量 > 0 ',(time.time(),))
+        cur.execute(u'update pypyodbc_test_data set 数量 = ? where 数量 > 0 '.encode('mbcs'),(time.time(),))
         print cur.rowcount
         print time.time()
         conn.commit()
