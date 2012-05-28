@@ -56,7 +56,7 @@ def prof_func():
 
 
 if __name__ == "__main__":
-    pypyodbc.DEBUG = 1
+    pypyodbc.DEBUG = 0
     DSN_list = pypyodbc.dataSources()
     print (DSN_list)
     
@@ -120,10 +120,10 @@ if __name__ == "__main__":
         cur = conn.cursor()
         
         cur.execute(u"insert into pypyodbc_test_data values(1,'pypyodbc好',12.3,1234.55,?,'17:31:32','2012-12-23',NULL)", (datetime.datetime.now(),))
-        longtext = u''.join([u'我在马路边捡到一分钱']*63)
+        longtext = u''.join([u'我在马路边捡到一分钱']*1)
         cur.execute("insert into pypyodbc_test_data values (?,?,?,?,?,?,?,NULL)", \
                                 (2, \
-                                longtext.encode('mbcs'),\
+                                longtext,\
                                 Decimal('1233.4513'), \
                                 123.44, \
                                 datetime.datetime.now(), \

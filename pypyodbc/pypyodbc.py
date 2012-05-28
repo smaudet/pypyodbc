@@ -434,7 +434,15 @@ class Cursor:
                             BufferLen = ctypes.c_long(buf_size)
                             LenOrIndBuf = ctypes.c_long()
                             prec = 3
-                    
+                    elif param_types[col_num] == unicode:
+                        sql_c_type = SQL_C_WCHAR
+                        sql_type = SQL_WLONGVARCHAR #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                        buf_size = 102400 #1MB
+                        self._inputsizers.append(buf_size)
+                        ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
+                        BufferLen = ctypes.c_long(buf_size)
+                        LenOrIndBuf = ctypes.c_long()
+                        prec = 3
                     else:
                         sql_c_type = SQL_C_CHAR
                         sql_type = SQL_LONGVARCHAR
@@ -483,6 +491,9 @@ class Cursor:
                     elif type(param_val) == Decimal:
                         c_char_buf = float(param_val)
                     elif type(param_val) == str:
+                        c_char_buf = param_val
+                        c_buf_len = len(param_val)
+                    elif type(param_val) == unicode:
                         c_char_buf = param_val
                         c_buf_len = len(param_val)
                     else:
