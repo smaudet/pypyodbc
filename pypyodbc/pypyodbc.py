@@ -482,8 +482,12 @@ class Cursor:
                         if DEBUG: print c_buf_len, c_char_buf
                     elif type(param_val) == Decimal:
                         c_char_buf = float(param_val)
+                    elif type(param_val) == str:
+                        c_char_buf = param_val
+                        c_buf_len = len(param_val)
                     else:
                         c_char_buf = param_val
+
                     
                     param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
 
@@ -908,6 +912,10 @@ class Connection:
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_ROLLBACK);
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
 
+    def __del__(self):
+        if self.connected:
+            self.close()
+        
     def close(self):
         """Call me before exit, please"""
         self.__CloseHandle()
@@ -935,7 +943,7 @@ class Connection:
             ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_ENV, shared_env_h)
             validate(ret, SQL_HANDLE_ENV, shared_env_h)
         '''
-        
+        self.connected = 0
         
 odbc = Connection
 

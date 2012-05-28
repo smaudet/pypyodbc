@@ -75,11 +75,11 @@ if __name__ == "__main__":
         u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi date, kong float)""",
         ),
-#        (pypyodbc.connect('DSN=MYSQL'),
-#        u"""create table pypyodbc_test_data (编号 integer,d nvarchar(255),数量 numeric,价格 float,日期 
-#                datetime,shijian time,riqi date, kong float)""",
-#        
-#        ),
+        (pypyodbc.connect('DSN=MYSQL'),
+        u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
+                datetime,shijian time,riqi date, kong float)""",
+        
+        ),
         (pypyodbc.connect('DSN=PostgreSQL35W'),
         u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
                         timestamp,shijian time,riqi date, kong float)""",
@@ -120,10 +120,10 @@ if __name__ == "__main__":
         cur = conn.cursor()
         
         cur.execute(u"insert into pypyodbc_test_data values(1,'pypyodbc好',12.3,1234.55,?,'17:31:32','2012-12-23',NULL)", (datetime.datetime.now(),))
-        longtext = u''.join([u'我在马路边捡到一分钱']*1)
+        longtext = u''.join([u'我在马路边捡到一分钱']*63)
         cur.execute("insert into pypyodbc_test_data values (?,?,?,?,?,?,?,NULL)", \
                                 (2, \
-                                'mbcs',\
+                                longtext.encode('mbcs'),\
                                 Decimal('1233.4513'), \
                                 123.44, \
                                 datetime.datetime.now(), \
