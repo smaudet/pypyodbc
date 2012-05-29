@@ -104,8 +104,8 @@ if __name__ == "__main__":
         
         
         cur = conn.cursor()
-        has_table_data = cur.tables(table='data').fetchone()
-        print 'has table "data"?' + str(has_table_data)
+        has_table_data = cur.tables(table='pypyodbc_test_data').fetchone()
+        print 'has table "pypyodbc_test_data"?' + str(has_table_data)
         cur.close()
         
         
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         cur = conn.cursor()
         
         cur.execute(u"insert into pypyodbc_test_data values(1,'pypyodbc',12.3,1234.55,?,'17:31:32','2012-12-23',NULL)", (datetime.datetime.now(),))
-        longtext = u''.join([u'我在马路边x捡到一分钱']*8)
+        longtext = u''.join([u'我在马路边，捡到一分钱。']*2)
         cur.execute("insert into pypyodbc_test_data values (?,?,?,?,?,?,?,NULL)", \
                                 (2, \
                                 longtext,\
@@ -137,20 +137,23 @@ if __name__ == "__main__":
                                 ))
         print time.time()
         for i in xrange(3,190):
-            cur.execute(u"""insert into pypyodbc_test_data values 
+            cur.executemany(u"""insert into pypyodbc_test_data values 
             (?,?,12.3, 1234.55, ?,?,'2012-12-23',NULL)""", 
-            (i, "巴萨的法尔.".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()))
+            [(i, "【巴黎圣母院】".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
+            (i, u"《巴提斯图塔》", datetime.datetime.now(), datetime.datetime.now().time()),
+            (i, "〖太极张三丰〗".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),]
+            )
         
         print time.time()
         conn.commit()
         
         print time.time()
 
-        cur.execute(u"""select * from pypyodbc_test_data""".encode('mbcs'))
+        cur.execute(u"""select * from pypyodbc_test_data""")
         print cur.description
         #Get results
         
-        for row in cur.fetchmany(3):
+        for row in cur.fetchmany(6):
             for field in row:
                 print type(field),
                 if isinstance(field, unicode):
@@ -165,11 +168,11 @@ if __name__ == "__main__":
         cur = conn.cursor()
         #cur.execute(u"delete from pypyodbc_test_data ".encode('mbcs'))
         
-        cur.execute(u"""select * from pypyodbc_test_data""".encode('mbcs'))
+        cur.execute(u"""select * from pypyodbc_test_data""")
 
         #Get results
         
-        for row in cur.fetchmany(3):
+        for row in cur.fetchmany(6):
             for field in row:
                 if isinstance(field, unicode):
                     print len(field),
@@ -212,7 +215,7 @@ if __name__ == "__main__":
         import cProfile
         #cProfile.run('prof_func()')
 
-        conn.close()
+        #conn.close()
     print ('End of testing')
     time.sleep(3)
     

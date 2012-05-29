@@ -57,7 +57,7 @@ SQL_ATTR_AUTOCOMMIT = 102
 SQL_AUTOCOMMIT_OFF, SQL_AUTOCOMMIT_ON = 0, 1
 SQL_IS_UINTEGER = -5
 SQL_ATTR_LOGIN_TIMEOUT = 103
-
+SQL_COMMIT, SQL_ROLLBACK = 0, 1
 
 SQL_COLUMN_DISPLAY_SIZE = 6
 SQL_INVALID_HANDLE = -2
@@ -195,7 +195,8 @@ class OdbcGenericError(Exception):
 # Define the python return type for ODBC functions with ret result.
 funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCols","SQLDescribeCol","SQLColAttribute",
         "SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount",
-        "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLConnect","SQLTables",
+        "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLDriverConnectW",
+        "SQLConnect","SQLTables",
         "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
         "SQLDescribeParam","SQLGetTypeInfo"]
 for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
@@ -234,9 +235,7 @@ def ctrl_err(ht, h, val_ret):
             
 def validate(ret, handle_type, handle):
     """ Validate return value, if not success, raise exceptions based on the handle """
-    if ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
-        return
-    else:
+    if ret not in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
         ctrl_err(handle_type, handle, ret)
 
             
@@ -275,21 +274,11 @@ ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 
 validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
 
-version = '1.0 alpha'
+version = '0.50 alpha'
 
 
-class c_date(ctypes.Structure):
-    _fields_ = [("year", ctypes.c_short),
-                ("month", ctypes.c_ushort),
-                ("day", ctypes.c_ushort),
-                ]
-
-
-
-
-'''
-The Cursor Class.
-'''
+#
+#The Cursor Class.
 class Cursor:
     def __init__(self, conx):
         """ Initialize self._stmt_h, which is the handle of a statement
@@ -308,18 +297,19 @@ class Cursor:
         self._outputsize = {}
         self._inputsizers = []
         self._stmt_h = ctypes.c_int()
-        self.setoutputsize(102400000) #100MB as the defalt buffer size for large column
+        self.setoutputsize(10240000) #100MB as the defalt buffer size for large column
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self.connection.dbc_h, ADDR(self._stmt_h))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.closed = False
-
-
-        
+     
     
     def setoutputsize(self, size, column = None):
         self._outputsize[column] = size
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
 
+    
+    def executemany(self, query_string, params_list = [None]):
+        for params in params_list:
+            self.execute(query_string, params)
     
     def execute(self, query_string, params = None):
         """ Execute the query string, with optional parameters.
@@ -359,7 +349,7 @@ class Cursor:
                     validate(ret, SQL_HANDLE_STMT, self._stmt_h)
                     '''
                     prec = 0
-                    buf_size = 1024000
+                    buf_size = 102400
 
                     if param_types[col_num] == int:
                         sql_c_type = SQL_C_LONG             
@@ -463,7 +453,7 @@ class Cursor:
             
             
             if len(params) != len(self._ParamBufferList):
-                # Number of parameters provided do not same as number required
+                # In case number of parameters provided do not same as number required
                 raise Exception
             else:
                 # With query prepared, now put parameters into buffers
@@ -514,7 +504,7 @@ class Cursor:
                         param_buffer_len.value = len(param_buffer)
 
                     col_num += 1
-                    #print c_char_buf
+
     
             ret = ODBC_API.SQLExecute(self._stmt_h)
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
@@ -569,7 +559,7 @@ class Cursor:
             col_type_code = self._ColTypeCodeList[col_num]
             
             totl_buf_len = self.description[col_num][2] + 1
-            if totl_buf_len > 10240000: #10MB
+            if totl_buf_len > 1024000: #10MB
                 default_output_size = self._outputsize[None]
                 totl_buf_len = self._outputsize.get(col_num,default_output_size)
                 
@@ -686,7 +676,6 @@ class Cursor:
         ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_RESET_PARAMS)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
 
-        
         ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_STMT, self._stmt_h)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
@@ -831,17 +820,11 @@ class Connection:
         and set the connection's attributes like autocommit and timeout
         by calling SQLSetConnectAttr
         """ 
-        # Convert the connetsytring to encoded string
-        # so it can be converted to a ctypes c_char array object 
-        self.connectString = connectString
-        if isinstance(self.connectString,unicode):
-            self.connectString = self.connectString.encode('mbcs')
+
 
 
         # Before we establish the connection by the connection string
         # Set the connection's attribute of "timeout" (Actully LOGIN_TIMEOUT)
-
-        
         if timeout != 0:
             ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_LOGIN_TIMEOUT, timeout, SQL_IS_UINTEGER);
             validate(ret, SQL_HANDLE_DBC, self.dbc_h)
@@ -849,10 +832,19 @@ class Connection:
 
         # Create one connection with a connect string by calling SQLDriverConnect
         # and make self.dbc_h the handle of this connection
-        c_connectString = ctypes.create_string_buffer(self.connectString)
 
-        ret = ODBC_API.SQLDriverConnect(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
+
+        # Convert the connetsytring to encoded string
+        # so it can be converted to a ctypes c_char array object 
+        self.connectString = connectString
+        if type(self.connectString) == unicode:
+            c_connectString = ctypes.create_unicode_buffer(self.connectString)
+            ret = ODBC_API.SQLDriverConnectW(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
+        else:
+            c_connectString = ctypes.create_string_buffer(self.connectString)
+            ret = ODBC_API.SQLDriverConnect(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
+            
         
         # Set the connection's attribute of "autocommit" 
         #
@@ -863,7 +855,7 @@ class Connection:
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
         self.unicode_results = unicode_results
-        self.update_type_info()
+        self.update_type_size_info()
         self.connected = 1
         
         
@@ -881,13 +873,13 @@ class Connection:
         ret = ODBC_API.SQLConnect(self.dbc_h, sn, len(sn), un, len(un), pw, len(pw))
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
 
-        self.update_type_info()
+        self.update_type_size_info()
         self.connected = 1
         
     def cursor(self):
         return Cursor(self)   
 
-    def update_type_info(self):
+    def update_type_size_info(self):
         #Get the scale information for SQL_TYPE_TIMESTAMP
         cur = Cursor(self)
         info_tuple = cur.getTypeInfo(SQL_TYPE_TIMESTAMP).fetchone()
@@ -920,12 +912,10 @@ class Connection:
 
     
     def commit(self):
-        SQL_COMMIT = 0
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_COMMIT);
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
 
     def rollback(self):
-        SQL_ROLLBACK = 1
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_ROLLBACK);
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
 
@@ -952,5 +942,4 @@ class Connection:
 odbc = Connection
 
 def connect(connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
-    conn = odbc(connectString, autocommit, ansi, timeout, unicode_results)
-    return conn
+    return odbc(connectString, autocommit, ansi, timeout, unicode_results)
