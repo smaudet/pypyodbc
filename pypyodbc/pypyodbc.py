@@ -805,8 +805,7 @@ class Cursor:
 
 
 class Connection:
-    """This class implement a odbc connection. It use ctypes for work.
-    """
+    """This class implement a odbc connection. It use ctypes for work."""
     def __init__(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
         """Init variables and connect to the engine"""
         self.connected = 0
@@ -917,10 +916,7 @@ class Connection:
         info_tuple = cur.getTypeInfo(SQL_TIME).fetchone()
         if info_tuple != None:        
             self.type_size_dic[SQL_TIME] = info_tuple[2], info_tuple[13]
-        
         cur.close()
-
-
 
     
     def commit(self):
@@ -938,32 +934,19 @@ class Connection:
             self.close()
         
     def close(self):
-        """Call me before exit, please"""
-        self.__CloseHandle()
-
-    def __CloseHandle(self, ht='', h=0):
-        if ht:
-            if not h.value: return
-            ret = ODBC_API.SQLFreeHandle(ht, h)
-            validate(SQL_HANDLE_ENV, self._stmt_h, ret)
-            return
-        
-        if self.dbc_h.value:
-            if self.connected:
-                if DEBUG: print 'disconnect'
-                if not self.autocommit:
-                    self.rollback()
-                ret = ODBC_API.SQLDisconnect(self.dbc_h)
-                validate(ret, SQL_HANDLE_DBC, self.dbc_h)
-            if DEBUG: print 'dbc'
-            ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_DBC, self.dbc_h)
+        if self.connected:
+            if DEBUG: print 'disconnect'
+            if not self.autocommit:
+                self.rollback()
+            ret = ODBC_API.SQLDisconnect(self.dbc_h)
             validate(ret, SQL_HANDLE_DBC, self.dbc_h)
-        '''
-        if shared_env_h.value:
-            if DEBUG: print 'env'
-            ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_ENV, shared_env_h)
-            validate(ret, SQL_HANDLE_ENV, shared_env_h)
-        '''
+        if DEBUG: print 'free dbc'
+        ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_DBC, self.dbc_h)
+        validate(ret, SQL_HANDLE_DBC, self.dbc_h)
+#        if shared_env_h.value:
+#            if DEBUG: print 'env'
+#            ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_ENV, shared_env_h)
+#            validate(ret, SQL_HANDLE_ENV, shared_env_h)
         self.connected = 0
         
 odbc = Connection
