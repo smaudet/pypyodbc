@@ -198,7 +198,7 @@ funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCo
         "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLDriverConnectW",
         "SQLConnect","SQLTables",
         "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
-        "SQLDescribeParam","SQLGetTypeInfo"]
+        "SQLDescribeParam","SQLGetTypeInfo","SQLPrimaryKeys","SQLForeignKeys","SQLProcedures"]
 for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
 
 
@@ -297,7 +297,7 @@ class Cursor:
         self._outputsize = {}
         self._inputsizers = []
         self._stmt_h = ctypes.c_int()
-        self.setoutputsize(10240000) #100MB as the defalt buffer size for large column
+        self.setoutputsize(10240000) #10MB as the defalt buffer size for large column
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self.connection.dbc_h, ADDR(self._stmt_h))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.closed = False
@@ -711,20 +711,16 @@ class Cursor:
     def tables(self, table=None, catalog=None, schema=None, tableType=None):
         """Return a list with all tables""" 
         l_catalog = 0
-        if catalog != None:
-            l_catalog = len(catalog)
+        if catalog != None: l_catalog = len(catalog)
             
         l_schema = 0
-        if schema != None:
-            l_schema = len(schema)
+        if schema != None: l_schema = len(schema)
             
         l_table = 0
-        if table != None:
-            l_table = len(table)
+        if table != None: l_table = len(table)
             
         l_tableType = 0
-        if tableType != None:
-            l_tableType = len(tableType)
+        if tableType != None: l_tableType = len(tableType)
         
         
         ret = ODBC_API.SQLTables(self._stmt_h,
@@ -745,20 +741,16 @@ class Cursor:
     def columns(self, table=None, catalog=None, schema=None, column=None):
         """Return a list with all columns"""        
         l_catalog = 0
-        if catalog != None:
-            l_catalog = len(catalog)
+        if catalog != None: l_catalog = len(catalog)
             
         l_schema = 0
-        if schema != None:
-            l_schema = len(schema)
+        if schema != None: l_schema = len(schema)
             
         l_table = 0
-        if table != None: 
-            l_table = len(table)
+        if table != None: l_table = len(table)
             
         l_column = 0
-        if column != None: 
-            l_column = len(column)
+        if column != None: l_column = len(column)
 
         ret = ODBC_API.SQLColumns(self._stmt_h,
                             catalog, l_catalog,
@@ -773,8 +765,91 @@ class Cursor:
         self._UpdateDesc()
         self._BindCols()
         return (self)
+    
+    def primaryKeys(self, table=None, catalog=None, schema=None):
+        l_catalog = 0
+        if catalog != None: l_catalog = len(catalog)
+        
+        l_schema = 0
+        if schema != None: l_schema = len(schema)
+        
+        l_table = 0
+        if table != None: l_table = len(table)
+        
+        ret = ODBC_API.SQLPrimaryKeys(self._stmt_h,
+                            catalog, l_catalog,
+                            schema, l_schema,
+                            table, l_table)
+        
+        if not ret == SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        return (self)
+        
+    def foreignKeys(self, table=None, catalog=None, schema=None, foreignTable=None, foreignCatalog=None, foreignSchema=None):
+        l_catalog = 0
+        if catalog != None: l_catalog = len(catalog)
+            
+        l_schema = 0
+        if schema != None: l_schema = len(schema)
+            
+        l_table = 0
+        if table != None: l_table = len(table)
 
-
+        l_foreignTable = 0
+        if foreignTable != None: l_foreignTable = len(foreignTable)
+        
+        l_foreignCatalog = 0
+        if foreignCatalog != None: l_foreignCatalog = len(foreignCatalog)
+        
+        l_foreignSchema = 0
+        if foreignSchema != None: l_foreignSchema = len(foreignSchema)
+        
+        ret = ODBC_API.SQLForeignKeys(self._stmt_h,
+                            catalog, l_catalog,
+                            schema, l_schema,
+                            table, l_table,
+                            foreignCatalog, l_foreignCatalog,
+                            foreignSchema, l_foreignSchema,
+                            foreignTable, l_foreignTable
+                            )
+        
+        if not ret == SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        return (self)
+    
+    def procedures(self, procedure=None, catalog=None, schema=None):
+        l_catalog = 0
+        if catalog != None: l_catalog = len(catalog)
+        
+        l_schema = 0
+        if schema != None: l_schema = len(schema)
+        
+        l_procedure = 0
+        if procedure != None: l_procedure = len(procedure)
+        
+        ret = ODBC_API.SQLProcedures(self._stmt_h,
+                            catalog, l_catalog,
+                            schema, l_schema,
+                            procedure, l_proceduree)
+        
+        if not ret == SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        return (self)
+        
+        
+        
 
 class Connection:
     """This class implement a odbc connection. It use ctypes for work."""

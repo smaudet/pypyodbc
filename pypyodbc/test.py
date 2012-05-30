@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys, os
-import pypyodbc as pypyodbc
+import pyodbc as pypyodbc
 import ctypes
 import time, datetime
 from decimal import Decimal
@@ -69,23 +69,23 @@ if __name__ == "__main__":
     conxs = [\
         ('Access',
         pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\e.mdb', unicode_results = True),
-        u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
+        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi datetime, kong float)""",
         ),
         ('SQLServer',
         pypyodbc.connect('DSN=MSSQL'),
-        u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
+        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
                 datetime,shijian time,riqi date, kong float)""",
         ),
         ('MySQL',
         pypyodbc.connect('DSN=MYSQL'),
-        u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
+        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
                 datetime,shijian time,riqi date, kong float)""",
         
         ),
         ('PostgreSQL',
         pypyodbc.connect('DSN=PostgreSQL35W'),
-        u"""create table pypyodbc_test_data (编号 integer,产品名 text,数量 numeric,价格 float,日期 
+        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
                         timestamp,shijian time,riqi date, kong float)""",
         ),
         ]
@@ -102,7 +102,11 @@ if __name__ == "__main__":
         cur = None
         '''
         
-        
+        print ' ='.join(['' for i in range(80)])
+        print ' ='.join(['' for i in range(80)])
+
+        print db_desc 
+        print ' ='.join(['' for i in range(80)])
         cur = conn.cursor()
         
         
@@ -116,7 +120,6 @@ if __name__ == "__main__":
         if has_table_data:
             cur.execute('Drop table pypyodbc_test_data;')
 
-        print db_desc
 
         cur.execute(create_table_sql)
         conn.commit()
@@ -139,10 +142,10 @@ if __name__ == "__main__":
         print time.time()
         for i in xrange(3,190):
             cur.executemany(u"""insert into pypyodbc_test_data values 
-            (?,?,12.3, 1234.55, ?,?,'2012-12-23',NULL)""", 
+            (?,?,12.32311, 1234.55, ?,?,'2012-12-23',NULL)""", 
             [(i, "【巴黎圣母院】".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
-            (i, u"《巴提斯图塔》", datetime.datetime.now(), datetime.datetime.now().time()),
-            (i, "〖太极张三丰〗".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),]
+            (i+100000, u"《普罗米修斯》", datetime.datetime.now(), datetime.datetime.now().time()),
+            (i+200000, "〖太极张三丰〗".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),]
             )
         
         print time.time()
