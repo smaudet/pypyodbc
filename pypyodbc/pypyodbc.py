@@ -707,22 +707,6 @@ class Cursor:
         self._BindCols()
         return (self)
 
-    def t(self):
-        ret = ODBC_API.SQLTables(self._stmt_h,
-                                None, 0,
-                                None, 0, 
-                                "data", 4,
-                                None, 0)
-        
-        if not ret == SQL_SUCCESS:
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        
-        self.NumOfRows()
-        self._UpdateDesc()
-        self._BindCols()
-        return (self)
-
-    
     
     def tables(self, table=None, catalog=None, schema=None, tableType=None):
         """Return a list with all tables""" 
