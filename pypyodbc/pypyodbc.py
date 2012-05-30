@@ -707,40 +707,47 @@ class Cursor:
         self._BindCols()
         return (self)
 
+    def t(self):
+        ret = ODBC_API.SQLTables(self._stmt_h,
+                                None, 0,
+                                None, 0, 
+                                "data", 4,
+                                None, 0)
+        
+        if not ret == SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        return (self)
 
     
+    
     def tables(self, table=None, catalog=None, schema=None, tableType=None):
-        """Return a list with all tables"""
-        v_catalog, l_catalog = None, 0
-        if catalog:
-            c_catalog = ctypes.create_string_buffer(catalog)
-            v_catalog = ADDR(c_catalog)
-            l_catalog = len(c_catalog)
+        """Return a list with all tables""" 
+        l_catalog = 0
+        if catalog != None:
+            l_catalog = len(catalog)
             
-        v_schema, l_schema = None, 0
-        if schema:
-            c_schema = ctypes.create_string_buffer(schema)
-            v_schema = ADDR(c_schema)
-            l_schema = len(c_schema)
+        l_schema = 0
+        if schema != None:
+            l_schema = len(schema)
             
-        v_table, l_table = None, 0
-        if table: 
-            c_table = ctypes.create_string_buffer(table)
-            v_table = ADDR(c_table)
-            l_table = len(c_table)
+        l_table = 0
+        if table != None:
+            l_table = len(table)
             
-        v_tabletype, l_tabletype = None, 0
-        if tableType: 
-            c_tabletype = ctypes.create_string_buffer(tableType)
-            v_tabletype = ADDR(c_tabletype)
-            l_tabletype = len(c_tabletype)
+        l_tableType = 0
+        if tableType != None:
+            l_tableType = len(tableType)
         
         
         ret = ODBC_API.SQLTables(self._stmt_h,
-                                v_catalog, l_catalog,
-                                v_schema, l_schema, 
-                                v_table, l_table,
-                                v_tabletype, l_tabletype)
+                                catalog, l_catalog,
+                                schema, l_schema, 
+                                table, l_table,
+                                tableType, l_tableType)
 
         if not ret == SQL_SUCCESS:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
@@ -753,35 +760,27 @@ class Cursor:
     
     def columns(self, table=None, catalog=None, schema=None, column=None):
         """Return a list with all columns"""        
-        v_catalog, l_catalog = None, 0
-        if catalog:
-            c_catalog = ctypes.create_string_buffer(catalog)
-            v_catalog = ADDR(c_catalog)
-            l_catalog = len(c_catalog)
+        l_catalog = 0
+        if catalog != None:
+            l_catalog = len(catalog)
             
-        v_schema, l_schema = None, 0
-        if schema:
-            c_schema = ctypes.create_string_buffer(schema)
-            v_schema = ADDR(c_schema)
-            l_schema = len(c_schema)
+        l_schema = 0
+        if schema != None:
+            l_schema = len(schema)
             
-        v_table, l_table = None, 0
-        if table: 
-            c_table = ctypes.create_string_buffer(table)
-            v_table = ADDR(c_table)
-            l_table = len(c_table)
+        l_table = 0
+        if table != None: 
+            l_table = len(table)
             
-        v_column, l_column = None, 0
-        if column: 
-            c_column = ctypes.create_string_buffer(column)
-            v_column = ADDR(c_column)
-            l_column = len(c_column)
+        l_column = 0
+        if column != None: 
+            l_column = len(column)
 
         ret = ODBC_API.SQLColumns(self._stmt_h,
-                            v_catalog, l_catalog,
-                            v_schema, l_schema,
-                            v_table, l_table,
-                            v_column, l_column)
+                            catalog, l_catalog,
+                            schema, l_schema,
+                            table, l_table,
+                            column, l_column)
 
         if not ret == SQL_SUCCESS:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
@@ -820,8 +819,6 @@ class Connection:
         and set the connection's attributes like autocommit and timeout
         by calling SQLSetConnectAttr
         """ 
-
-
 
         # Before we establish the connection by the connection string
         # Set the connection's attribute of "timeout" (Actully LOGIN_TIMEOUT)

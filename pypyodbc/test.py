@@ -104,16 +104,17 @@ if __name__ == "__main__":
         
         
         cur = conn.cursor()
+        
+        
         has_table_data = cur.tables(table='pypyodbc_test_data').fetchone()
         print 'has table "pypyodbc_test_data"?' + str(has_table_data)
+        
         cur.close()
         
         
         cur = conn.cursor()
-        try:
+        if has_table_data:
             cur.execute('Drop table pypyodbc_test_data;')
-        except:
-            pass
 
         print db_desc
 
