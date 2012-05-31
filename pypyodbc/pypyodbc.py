@@ -136,7 +136,7 @@ def create_buffer_u(len):
 def create_buffer(len):
     return ctypes.create_string_buffer(len)
 
-# Below Datatype mappings ADDRenced the document at
+# Below Datatype mappings referenced the document at
 # http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.aseodbc/html/aseodbc/CACFDIGH.htm
 SqlTypes = { \
 SQL_TYPE_NULL       : (None,                lambda x: None,             SQL_C_CHAR,         create_buffer), 
