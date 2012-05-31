@@ -285,7 +285,7 @@ class Cursor:
         A statement is actually the basis of a python"cursor" object
         """
         self.connection = conx
-        self._last_query = None
+        self.statement = None
         self._last_param_types = None
         self._ParamBufferList = []
         self._ColBufferList = []
@@ -308,10 +308,11 @@ class Cursor:
 
     
     def executemany(self, query_string, params_list = [None]):
+        self.prepare(query_string)
         for params in params_list:
-            self.execute(query_string, params)
+            self.execute(query_string, params, stmt_prepared = True)
     
-    def execute(self, query_string, params = None):
+    def execute(self, query_string, params = None, stmt_prepared = False):
         """ Execute the query string, with optional parameters.
         If parameters are provided, the query would first be prepared, then executed with parameters;
         If parameters are not provided, only th query sting, it would be executed directly 
@@ -321,15 +322,13 @@ class Cursor:
             if not type(params) in (tuple, list):
                 raise Exception
             param_types = [type(p) for p in params]
-            if query_string != self._last_query or param_types != self._last_param_types:
-                # if the query is not same as last query, then it is not prepared
-                # it needs to be prepared before excuting with parameters
-                if type(query_string) == unicode:
-                    ret = ODBC_API.SQLPrepareW(self._stmt_h, query_string, len(query_string))
-                else:
-                    ret = ODBC_API.SQLPrepare(self._stmt_h, query_string, len(query_string))
-                validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-                
+            
+            if not stmt_prepared:
+                if query_string != self.statement:
+                    # if the query is not same as last query, then it is not prepared
+                    self.prepare(query_string)
+                    
+            if param_types != self._last_param_types:
                 # Get the number of query parameters judged by database.
                 NumParams = ctypes.c_int()
                 ret = ODBC_API.SQLNumParams(self._stmt_h, ADDR(NumParams))
@@ -447,7 +446,6 @@ class Cursor:
                     # Append the value buffer and the lenth buffer to the array
                     ParamBufferList.append((ParameterBuffer,LenOrIndBuf))
                         
-                self._last_query = query_string
                 self._last_param_types = param_types
                 self._ParamBufferList = ParamBufferList
             
@@ -508,18 +506,37 @@ class Cursor:
     
             ret = ODBC_API.SQLExecute(self._stmt_h)
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        else:
-            """Execute a query directly"""
-            if type(query_string) == unicode:
-                ret = ODBC_API.SQLExecDirectW(self._stmt_h, query_string, len(query_string))
-            else:
-                ret = ODBC_API.SQLExecDirect(self._stmt_h, query_string, len(query_string))
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            self.NumOfRows()
+            self._UpdateDesc()
+            self._BindCols()
             
+        else:
+            self.execdirect(query_string)
+        return (self)
+            
+    def prepare(self, query_string):
+        """prepare a query"""
+        if type(query_string) == unicode:
+            ret = ODBC_API.SQLPrepareW(self._stmt_h, query_string, len(query_string))
+        else:
+            ret = ODBC_API.SQLPrepare(self._stmt_h, query_string, len(query_string))
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        self.statement = query_string
+        
+    
+    def execdirect(self, query_string):
+        """Execute a query directly"""
+        if type(query_string) == unicode:
+            ret = ODBC_API.SQLExecDirectW(self._stmt_h, query_string, len(query_string))
+        else:
+            ret = ODBC_API.SQLExecDirect(self._stmt_h, query_string, len(query_string))
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.NumOfRows()
         self._UpdateDesc()
         self._BindCols()
         return (self)
+        
+        
     
     def _UpdateDesc(self):
         "Get the information of (name, type_code, display_size, internal_size, precision, scale, null_ok)"  
@@ -544,7 +561,7 @@ class Cursor:
             
             
             ColDescr.append((Cname.value, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
-                Csize.value,Cprecision.value,Cnull_ok.value))
+                Csize.value,Cprecision.value, None,Cnull_ok.value == 1 and True or False))
             self._ColTypeCodeList.append(Ctype_code.value)
         self.description = ColDescr
         

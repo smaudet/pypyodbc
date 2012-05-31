@@ -72,17 +72,17 @@ if __name__ == "__main__":
         u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi datetime, kong float)""",
         ),
-        ('SQLServer',
-        pypyodbc.connect('DSN=MSSQL'),
-        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
-                datetime,shijian time,riqi date, kong float)""",
-        ),
-        ('MySQL',
-        pypyodbc.connect('DSN=MYSQL'),
-        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
-                datetime,shijian time,riqi date, kong float)""",
-        
-        ),
+#        ('SQLServer',
+#        pypyodbc.connect('DSN=MSSQL'),
+#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
+#                datetime,shijian time,riqi date, kong float)""",
+#        ),
+#        ('MySQL',
+#        pypyodbc.connect('DSN=MYSQL'),
+#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
+#                datetime,shijian time,riqi date, kong float)""",
+#        
+#        ),
         ('PostgreSQL',
         pypyodbc.connect('DSN=PostgreSQL35W'),
         u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
@@ -126,8 +126,10 @@ if __name__ == "__main__":
         for row in cur.columns(table='data').fetchall():
             print row
         cur.close()
-        cur = conn.cursor()
         
+        print 'inserting...',
+        start_time = time.time()
+        cur = conn.cursor()
         cur.execute(u"insert into pypyodbc_test_data values(1,'pypyodbc',12.3,1234.55,?,'17:31:32','2012-12-23',NULL)", (datetime.datetime.now(),))
         longtext = u''.join([u'我在马路边，捡到一分钱。']*2)
         cur.execute("insert into pypyodbc_test_data values (?,?,?,?,?,?,?,NULL)", \
@@ -139,17 +141,26 @@ if __name__ == "__main__":
                                 datetime.datetime.now().time(),\
                                 datetime.date.today(),\
                                 ))
-        print time.time()
-        for i in xrange(3,190):
+
+
+        for i in xrange(3,1003):
             cur.executemany(u"""insert into pypyodbc_test_data values 
             (?,?,12.32311, 1234.55, ?,?,'2012-12-23',NULL)""", 
             [(i, "【巴黎圣母院】".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
             (i+100000, u"《普罗米修斯》", datetime.datetime.now(), datetime.datetime.now().time()),
-            (i+200000, "〖太极张三丰〗".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),]
+            (i+200000, "〖太极张三丰〗".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
+            (i+300000, '〖!@#$$%"^&%&〗'.decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
+            (i+400000, "〖querty-','〗".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
+            
+            ]
             )
         
-        print time.time()
+        print 'insert complete, total time ',
+        end_time = time.time()
+        print end_time-start_time
         conn.commit()
+        print 'commit comlete, commit time ',
+        print time.time() - end_time
         
         print time.time()
 
