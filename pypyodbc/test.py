@@ -66,17 +66,14 @@ if __name__ == "__main__":
     DSN_list = pypyodbc.dataSources()
     print (DSN_list)
     
-    if sys.platform == "win32":
-        dsn_test =  'mdb'
-    else:
-        dsn_test =  'pg'
-    user = 'tutti'
     
-    pypyodbc.win_create_mdb(cur_file_dir()+u'\\灵活.mdb'.encode('mbcs'))
+    mdb_path = cur_file_dir()+u'\\灵活.mdb'
+    
+    pypyodbc.win_create_mdb(mdb_path.encode('mbcs'))
 
     conxs = [\
         ('Access',
-        pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+cur_file_dir()+u'\\灵活.mdb', unicode_results = True),
+        pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+mdb_path, unicode_results = True),
         u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi datetime, kong float)""",
         ),
