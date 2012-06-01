@@ -321,19 +321,25 @@ class Cursor:
             # If parameters exist, first prepare the query then executed with parameters
             if not type(params) in (tuple, list):
                 raise Exception
-            param_types = [type(p) for p in params]
             
             if not stmt_prepared:
                 if query_string != self.statement:
                     # if the query is not same as last query, then it is not prepared
                     self.prepare(query_string)
                     
+            param_types = [type(p) for p in params]
             if param_types != self._last_param_types:
                 # Get the number of query parameters judged by database.
                 NumParams = ctypes.c_int()
                 ret = ODBC_API.SQLNumParams(self._stmt_h, ADDR(NumParams))
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+                
                 if DEBUG: print ('DEBUGGING: Parameter numbers:' + str(NumParams.value))
+                
+                if len(params) != NumParams.value:
+                    # In case number of parameters provided do not same as number required
+                    raise Exception
+                
                 
                 # Every parameter needs to be binded to a buffer
                 ParamBufferList = []
@@ -450,58 +456,54 @@ class Cursor:
                 self._ParamBufferList = ParamBufferList
             
             
-            if len(params) != len(self._ParamBufferList):
-                # In case number of parameters provided do not same as number required
-                raise Exception
-            else:
-                # With query prepared, now put parameters into buffers
-                col_num = 0
-                for param_buffer, param_buffer_len in self._ParamBufferList:
-                    c_char_buf, c_buf_len = '', 102400
-                    param_val = params[col_num]
-                    if param_val == None:
-                        c_buf_len = -1
-                    elif type(param_val) == datetime.datetime:
-                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
-                        datetime_str = param_val.isoformat().replace('T',' ') 
-                        if len(datetime_str) == 19:
-                            datetime_str += '.000'
-                        c_char_buf = datetime_str[:c_buf_len]
-                        if DEBUG: print c_buf_len, c_char_buf
-                    elif type(param_val) == datetime.date:
-                        if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
-                            c_buf_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
-                        else:
-                            c_buf_len = 10
-                        c_char_buf = param_val.isoformat()[:c_buf_len]
-                        if DEBUG: print c_char_buf
-                    elif type(param_val) == datetime.time:
-                        if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
-                            c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
-                            c_char_buf = param_val.isoformat()[0:c_buf_len]
-                        else:
-                            c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
-                            time_str = param_val.isoformat()
-                            if len(time_str) == 8:
-                                time_str += '.000'
-                            c_char_buf = '1900-01-01 '+time_str[0:c_buf_len - 11]
-                        if DEBUG: print c_buf_len, c_char_buf
-                    elif type(param_val) == Decimal:
-                        c_char_buf = float(param_val)
-                    elif type(param_val) == str:
-                        c_char_buf = param_val
-                        c_buf_len = len(param_val)
-                    elif type(param_val) == unicode:
-                        c_char_buf = param_val
-                        c_buf_len = len(param_val)
-                        if DEBUG: print c_buf_len
+            # With query prepared, now put parameters into buffers
+            col_num = 0
+            for param_buffer, param_buffer_len in self._ParamBufferList:
+                c_char_buf, c_buf_len = '', 102400
+                param_val = params[col_num]
+                if param_val == None:
+                    c_buf_len = -1
+                elif type(param_val) == datetime.datetime:
+                    c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                    datetime_str = param_val.isoformat().replace('T',' ') 
+                    if len(datetime_str) == 19:
+                        datetime_str += '.000'
+                    c_char_buf = datetime_str[:c_buf_len]
+                    if DEBUG: print c_buf_len, c_char_buf
+                elif type(param_val) == datetime.date:
+                    if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
+                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
                     else:
-                        c_char_buf = param_val
-                    param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
-                    if type(param_val) == unicode:
-                        param_buffer_len.value = len(param_buffer)
+                        c_buf_len = 10
+                    c_char_buf = param_val.isoformat()[:c_buf_len]
+                    if DEBUG: print c_char_buf
+                elif type(param_val) == datetime.time:
+                    if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
+                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
+                        c_char_buf = param_val.isoformat()[0:c_buf_len]
+                    else:
+                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                        time_str = param_val.isoformat()
+                        if len(time_str) == 8:
+                            time_str += '.000'
+                        c_char_buf = '1900-01-01 '+time_str[0:c_buf_len - 11]
+                    if DEBUG: print c_buf_len, c_char_buf
+                elif type(param_val) == Decimal:
+                    c_char_buf = float(param_val)
+                elif type(param_val) == str:
+                    c_char_buf = param_val
+                    c_buf_len = len(param_val)
+                elif type(param_val) == unicode:
+                    c_char_buf = param_val
+                    c_buf_len = len(param_val)
+                    if DEBUG: print c_buf_len
+                else:
+                    c_char_buf = param_val
+                param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
+                if type(param_val) == unicode:
+                    param_buffer_len.value = len(param_buffer)
 
-                    col_num += 1
+                col_num += 1
 
     
             ret = ODBC_API.SQLExecute(self._stmt_h)
@@ -727,16 +729,11 @@ class Cursor:
     
     def tables(self, table=None, catalog=None, schema=None, tableType=None):
         """Return a list with all tables""" 
-        l_catalog = 0
+        l_catalog = l_schema = l_table = l_tableType = 0
+        
         if catalog != None: l_catalog = len(catalog)
-            
-        l_schema = 0
         if schema != None: l_schema = len(schema)
-            
-        l_table = 0
         if table != None: l_table = len(table)
-            
-        l_tableType = 0
         if tableType != None: l_tableType = len(tableType)
         
         
@@ -757,16 +754,10 @@ class Cursor:
     
     def columns(self, table=None, catalog=None, schema=None, column=None):
         """Return a list with all columns"""        
-        l_catalog = 0
+        l_catalog = l_schema = l_table = l_column = 0
         if catalog != None: l_catalog = len(catalog)
-            
-        l_schema = 0
         if schema != None: l_schema = len(schema)
-            
-        l_table = 0
         if table != None: l_table = len(table)
-            
-        l_column = 0
         if column != None: l_column = len(column)
 
         ret = ODBC_API.SQLColumns(self._stmt_h,
@@ -784,13 +775,9 @@ class Cursor:
         return (self)
     
     def primaryKeys(self, table=None, catalog=None, schema=None):
-        l_catalog = 0
+        l_catalog = l_schema = l_table = 0
         if catalog != None: l_catalog = len(catalog)
-        
-        l_schema = 0
         if schema != None: l_schema = len(schema)
-        
-        l_table = 0
         if table != None: l_table = len(table)
         
         ret = ODBC_API.SQLPrimaryKeys(self._stmt_h,
@@ -807,22 +794,12 @@ class Cursor:
         return (self)
         
     def foreignKeys(self, table=None, catalog=None, schema=None, foreignTable=None, foreignCatalog=None, foreignSchema=None):
-        l_catalog = 0
+        l_catalog = l_schema = l_table = l_foreignTable = l_foreignCatalog = l_foreignSchema = 0
         if catalog != None: l_catalog = len(catalog)
-            
-        l_schema = 0
         if schema != None: l_schema = len(schema)
-            
-        l_table = 0
         if table != None: l_table = len(table)
-
-        l_foreignTable = 0
         if foreignTable != None: l_foreignTable = len(foreignTable)
-        
-        l_foreignCatalog = 0
         if foreignCatalog != None: l_foreignCatalog = len(foreignCatalog)
-        
-        l_foreignSchema = 0
         if foreignSchema != None: l_foreignSchema = len(foreignSchema)
         
         ret = ODBC_API.SQLForeignKeys(self._stmt_h,
@@ -843,13 +820,9 @@ class Cursor:
         return (self)
     
     def procedures(self, procedure=None, catalog=None, schema=None):
-        l_catalog = 0
+        l_catalog = l_schema = l_procedure = 0
         if catalog != None: l_catalog = len(catalog)
-        
-        l_schema = 0
         if schema != None: l_schema = len(schema)
-        
-        l_procedure = 0
         if procedure != None: l_procedure = len(procedure)
         
         ret = ODBC_API.SQLProcedures(self._stmt_h,

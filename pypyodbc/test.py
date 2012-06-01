@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys, os
-import pyodbc as pypyodbc
+import pypyodbc as pypyodbc
 import ctypes
 import time, datetime
 from decimal import Decimal
@@ -83,11 +83,11 @@ if __name__ == "__main__":
 #                datetime,shijian time,riqi date, kong float)""",
 #        
 #        ),
-        ('PostgreSQL',
-        pypyodbc.connect('DSN=PostgreSQL35W'),
-        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
-                        timestamp,shijian time,riqi date, kong float)""",
-        ),
+#        ('PostgreSQL',
+#        pypyodbc.connect('DSN=PostgreSQL35W'),
+#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
+#                        timestamp,shijian time,riqi date, kong float)""",
+#        ),
         ]
     
     for db_desc, conn, create_table_sql in conxs:
@@ -102,11 +102,11 @@ if __name__ == "__main__":
         cur = None
         '''
         
-        print ' ='.join(['' for i in range(80)])
-        print ' ='.join(['' for i in range(80)])
+        print ' *'.join(['' for i in range(80)])
+        print ' *'.join(['' for i in range(80)])
 
         print db_desc 
-        print ' ='.join(['' for i in range(80)])
+        print ' *'.join(['' for i in range(80)])
         cur = conn.cursor()
         
         
@@ -143,7 +143,7 @@ if __name__ == "__main__":
                                 ))
 
 
-        for i in xrange(3,1003):
+        for i in xrange(3,3003):
             cur.executemany(u"""insert into pypyodbc_test_data values 
             (?,?,12.32311, 1234.55, ?,?,'2012-12-23',NULL)""", 
             [(i, "【巴黎圣母院】".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
@@ -213,6 +213,7 @@ if __name__ == "__main__":
         print ('')
         print (cur.description)
         
+        start_time = time.time()
         i = 1
         row = cur.fetchone()
         while row != None:
@@ -223,7 +224,8 @@ if __name__ == "__main__":
                 print i,
             
             row = cur.fetchone()
-            
+        print '\n Total records retrive time:',
+        print time.time() - start_time
         #print conn.FetchAll()
         #Close before exit
         cur.close()
