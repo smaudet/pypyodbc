@@ -989,3 +989,10 @@ odbc = Connection
 
 def connect(connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
     return odbc(connectString, autocommit, ansi, timeout, unicode_results)
+
+
+def win_create_mdb(mdb_path):
+    c_Path = "CREATE_DB="+mdb_path+" General\0\0"
+    ODBC_ADD_SYS_DSN = 1
+    ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
+
