@@ -743,8 +743,7 @@ class Cursor:
                                 table, l_table,
                                 tableType, l_tableType)
 
-        if not ret == SQL_SUCCESS:
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
     
         self.NumOfRows()
         self._UpdateDesc()
@@ -765,9 +764,7 @@ class Cursor:
                             schema, l_schema,
                             table, l_table,
                             column, l_column)
-
-        if not ret == SQL_SUCCESS:
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
 
         self.NumOfRows()
         self._UpdateDesc()
@@ -785,8 +782,7 @@ class Cursor:
                             schema, l_schema,
                             table, l_table)
         
-        if not ret == SQL_SUCCESS:
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         self.NumOfRows()
         self._UpdateDesc()
@@ -811,8 +807,7 @@ class Cursor:
                             foreignTable, l_foreignTable
                             )
         
-        if not ret == SQL_SUCCESS:
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         self.NumOfRows()
         self._UpdateDesc()
@@ -830,8 +825,7 @@ class Cursor:
                             schema, l_schema,
                             procedure, l_proceduree)
         
-        if not ret == SQL_SUCCESS:
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         self.NumOfRows()
         self._UpdateDesc()
@@ -986,6 +980,8 @@ class Connection:
         self.connected = 0
         
 odbc = Connection
+
+
 
 def connect(connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
     return odbc(connectString, autocommit, ansi, timeout, unicode_results)
