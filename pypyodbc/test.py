@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys, os
-import pypyodbc as pypyodbc
+import pyodbc as pypyodbc
 import ctypes
 import time, datetime
 from decimal import Decimal
@@ -77,22 +77,22 @@ if __name__ == "__main__":
         u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi datetime, kong float)""",
         ),
-#        ('SQLServer',
-#        pypyodbc.connect('DSN=MSSQL'),
-#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
-#                datetime,shijian time,riqi date, kong float)""",
-#        ),
-#        ('MySQL',
-#        pypyodbc.connect('DSN=MYSQL'),
-#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
-#                datetime,shijian time,riqi date, kong float)""",
-#        
-#        ),
-#        ('PostgreSQL',
-#        pypyodbc.connect('DSN=PostgreSQL35W'),
-#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
-#                        timestamp,shijian time,riqi date, kong float)""",
-#        ),
+        ('SQLServer',
+        pypyodbc.connect('DSN=MSSQL', unicode_results = True),
+        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
+                datetime,shijian time,riqi date, kong float)""",
+        ),
+        ('MySQL',
+        pypyodbc.connect('DSN=MYSQL', unicode_results = True),
+        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
+                datetime,shijian time,riqi date, kong float)""",
+        
+        ),
+        ('PostgreSQL',
+        pypyodbc.connect('DSN=PostgreSQL35W', unicode_results = True),
+        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,产品名 text,数量 numeric(14,4),价格 float,日期 
+                        timestamp,shijian time,riqi date, kong float)""",
+        ),
         ]
     
     for db_desc, conn, create_table_sql in conxs:
@@ -148,7 +148,7 @@ if __name__ == "__main__":
                                 ))
 
 
-        for i in xrange(3,3003):
+        for i in xrange(3,1003):
             cur.executemany(u"""insert into pypyodbc_test_data values 
             (?,?,12.32311, 1234.55, ?,?,'2012-12-23',NULL)""", 
             [(i, "【巴黎圣母院】".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
