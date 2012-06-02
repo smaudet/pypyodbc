@@ -31,6 +31,7 @@ if DEBUG: print 'DEBUGGING'
 # Set the library location on linux 
 library = "/usr/lib/libodbc.so"
 
+
 # Get the References of the platform's ODBC functions via ctypes 
 if sys.platform == 'win32':
     ODBC_API = ctypes.windll.odbc32
@@ -41,8 +42,6 @@ else:
         ODBC_API = ctypes.cdll.LoadLibrary(library)
     except:
         raise OdbcLibraryError, 'Error while loading %s' % library
-
-
 
 
 # Define ODBC constants. They are widly used in ODBC documents and programs
@@ -153,9 +152,9 @@ SQL_TIME            : (datetime.time,       tm_cvt,                     SQL_C_CH
 SQL_TIMESTAMP       : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer),
 SQL_VARCHAR         : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer),
 SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer),
-SQL_BINARY          : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       lambda x:ctypes.c_buffer()),
-SQL_VARBINARY       : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       lambda x:ctypes.c_buffer()),
-SQL_LONGVARBINARY   : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       lambda x:ctypes.c_buffer()),
+SQL_BINARY          : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
+SQL_VARBINARY       : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
+SQL_LONGVARBINARY   : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
 SQL_BIGINT          : (int,                 long,                       SQL_C_LONG,         lambda x:ctypes.c_long()),
 SQL_TINYINT         : (int,                 long,                       SQL_C_TINYINT,      lambda x:ctypes.c_short()),
 SQL_BIT             : (bool,                bool,                       SQL_C_BIT,          lambda x:ctypes.c_short()),
@@ -276,7 +275,8 @@ validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
 version = '0.50 alpha'
 
-
+class ROW(list):
+    pass
 #
 #The Cursor Class.
 class Cursor:
@@ -372,10 +372,19 @@ class Cursor:
                     c_char_buf = param_val
                     c_buf_len = len(param_val)
                     if DEBUG: print c_buf_len
+                elif type(param_val) == bytearray:
+                    c_char_buf = str(param_val)
+                    c_buf_len = len(c_char_buf)
+                
                 else:
                     c_char_buf = param_val
-                param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
-                if type(param_val) == unicode:
+                
+
+                if type(param_val) in (bytearray,):
+                    param_buffer.raw, param_buffer_len.value = c_char_buf, c_buf_len
+                else:
+                    param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
+                if type(param_val) in (unicode,):
                     param_buffer_len.value = len(param_buffer)
 
                 col_num += 1
@@ -450,16 +459,18 @@ class Cursor:
         col_buffer_list = []
 
         for col_num in range(NOC):
+            col_name = self.description[col_num][0]
             col_type_code = self._ColTypeCodeList[col_num]
+            total_buf_len = self.description[col_num][2] + 1
             
-            totl_buf_len = self.description[col_num][2] + 1
-            if totl_buf_len > 1024000: #10MB
+            # if it's a long data col_num, we enlarge the buffer to predefined length.
+            if total_buf_len > 1024000 or total_buf_len < 0: #1MB
                 default_output_size = self._outputsize[None]
-                totl_buf_len = self._outputsize.get(col_num,default_output_size)
+                total_buf_len = self._outputsize.get(col_num,default_output_size)
                 
-            if DEBUG: print self.description[col_num][0]+' binded buffer size: '+ str(totl_buf_len)
+            if DEBUG: print self.description[col_num][0]+' binded buffer size: '+ str(total_buf_len)
             
-            a_buffer = SqlTypes[col_type_code][3](totl_buf_len)
+            alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
             used_buf_len = ctypes.c_long()
             
             target_type = SqlTypes[col_type_code][2]
@@ -467,13 +478,13 @@ class Cursor:
 
             if force_unicode and col_type_code in (SQL_CHAR,SQL_VARCHAR,SQL_LONGVARCHAR):
                 target_type = SQL_C_WCHAR
-                a_buffer = create_buffer_u(totl_buf_len)
+                alloc_buffer = create_buffer_u(total_buf_len)
             
-            ret = ODBC_API.SQLBindCol(self._stmt_h, col_num + 1, target_type, ADDR(a_buffer), totl_buf_len,\
+            ret = ODBC_API.SQLBindCol(self._stmt_h, col_num + 1, target_type, ADDR(alloc_buffer), total_buf_len,\
                 ADDR(used_buf_len))
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
-            col_buffer_list.append((a_buffer,used_buf_len,buf_cvt_func))
+            col_buffer_list.append((col_name,alloc_buffer,used_buf_len,buf_cvt_func))
             #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
         self._ColBufferList = col_buffer_list
         
@@ -544,7 +555,7 @@ class Cursor:
                 sql_c_type = SQL_C_CHAR
                 if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
                     if DEBUG: print 'conx.type_size_dic.has_key(SQL_TYPE_DATE)'
-                    sql_type = SQL_TYPE_DATE #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                    sql_type = SQL_TYPE_DATE
                     buf_size = self.connection.type_size_dic[SQL_TYPE_DATE][0]
                     self._inputsizers.append(buf_size)
                     ParameterBuffer = ctypes.create_string_buffer(buf_size)
@@ -553,7 +564,8 @@ class Cursor:
                     prec = self.connection.type_size_dic[SQL_TYPE_DATE][1]
                     
                 else:
-                    sql_type = SQL_TYPE_TIMESTAMP #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                    #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                    sql_type = SQL_TYPE_TIMESTAMP 
                     buf_size = 10
                     self._inputsizers.append(buf_size)
                     ParameterBuffer = ctypes.create_string_buffer(buf_size)
@@ -582,16 +594,17 @@ class Cursor:
             elif param_types[col_num] == unicode:
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
-                buf_size = 102400 #1MB
+                buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
                 BufferLen = ctypes.c_long(buf_size)
                 LenOrIndBuf = ctypes.c_long()
                 prec = 0
+            
             else:
-                sql_c_type = SQL_C_CHAR
-                sql_type = SQL_LONGVARCHAR
-                buf_size = 102400 #1MB
+                sql_c_type = SQL_C_BINARY
+                sql_type = SQL_LONGVARBINARY 
+                buf_size = 512000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_string_buffer(buf_size)
                 BufferLen = ctypes.c_long(buf_size)
@@ -604,8 +617,7 @@ class Cursor:
                 
         self._last_param_types = param_types
         self._ParamBufferList = ParamBufferList
-        
-    
+
     
     def NumOfRows(self):
         """Get the number of rows"""
@@ -614,18 +626,19 @@ class Cursor:
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.rowcount = NOR.value
         return self.rowcount    
+
     
     def NumOfCols(self):
         """Get the number of cols"""
         NOC = ctypes.c_int()
         ret = ODBC_API.SQLNumResultCols(self._stmt_h, ADDR(NOC))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-
         return NOC.value
     
 
     def fetchmany(self, num):
         return self.__fetch(num)
+
 
     def fetchone(self):
         ret = SQLFetch(self._stmt_h)
@@ -635,14 +648,21 @@ class Cursor:
             else:
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             
-        row = [None for colbuf in self._ColBufferList]
+        row = ROW()
         
-        col_num = 0
-        for buf_value, buf_len, cvt_func in self._ColBufferList:
+        for col_name, buf_value, buf_len, cvt_func in self._ColBufferList:
             if buf_len.value != SQL_NULL_DATA:
-                row[col_num] = cvt_func(buf_value.value)
-            col_num += 1
+                if col_name == 'bin':
+                    row.append(cvt_func(buf_value.raw[:buf_len.value]))
+                else:
+                    row.append(cvt_func(buf_value.value))
+                
+            else:
+                row.append(None)
+            setattr(row,col_name,row[-1])
+
         return (row)
+    
     
     def fetchall(self):
         return self.__fetch()
@@ -660,24 +680,16 @@ class Cursor:
                 else:
                     validate(ret, SQL_HANDLE_STMT, self._stmt_h)
                 
-            row = [None for colbuf in self._ColBufferList]
+            row = ROW()
             
-            col_num = 0
-            for buf_value, buf_len, cvt_func in self._ColBufferList:
+            for col_name, buf_value, buf_len, cvt_func in self._ColBufferList:
                 if buf_len.value != SQL_NULL_DATA:
-                    row[col_num] = cvt_func(buf_value.value)
-                col_num += 1
-                '''
-                try:
-                    if buf_len.value != SQL_NULL_DATA:
-                        row[col_num] = cvt_func(buf_value.value)
-                except:
-                    print (colbuf[0].value)
-                    print (SqlTypes[self._ColTypeCodeList[col_num]][0])
-                    print type(colbuf[0].value)
-                    x = colbuf[0].value
-                    raise sys.exc_value
-                '''
+                    row.append(cvt_func(buf_value.value))
+                    
+                else:
+                    row.append(None)
+                setattr(row,col_name,row[-1])
+            
                 
             rows.append(row)
             row_num += 1
@@ -705,6 +717,7 @@ class Cursor:
         self.closed = True
         return
     
+    
     def __del__(self):  
         if not self.closed:
             if DEBUG: print 'auto closing cursor: ',
@@ -716,6 +729,7 @@ class Cursor:
             else:
                 if DEBUG: print 'succeed'
                 pass
+    
     
     def getTypeInfo(self, sqlType = None):
         if sqlType == None:
@@ -746,7 +760,6 @@ class Cursor:
                                 schema, l_schema, 
                                 table, l_table,
                                 tableType, l_tableType)
-
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
     
         self.NumOfRows()
@@ -785,7 +798,6 @@ class Cursor:
                             catalog, l_catalog,
                             schema, l_schema,
                             table, l_table)
-        
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         self.NumOfRows()
@@ -808,9 +820,7 @@ class Cursor:
                             table, l_table,
                             foreignCatalog, l_foreignCatalog,
                             foreignSchema, l_foreignSchema,
-                            foreignTable, l_foreignTable
-                            )
-        
+                            foreignTable, l_foreignTable)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         self.NumOfRows()
@@ -828,7 +838,6 @@ class Cursor:
                             catalog, l_catalog,
                             schema, l_schema,
                             procedure, l_proceduree)
-        
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         self.NumOfRows()
