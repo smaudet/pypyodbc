@@ -394,7 +394,7 @@ class Cursor:
                 ADDR(used_buf_len))
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
-            col_buffer_list.append((col_name,alloc_buffer,used_buf_len,buf_cvt_func))
+            col_buffer_list.append((col_name,alloc_buffer,used_buf_len,buf_cvt_func, target_type))
             #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
         self._ColBufferList = col_buffer_list
         
@@ -717,9 +717,9 @@ class Cursor:
             
         row = ROW()
         
-        for col_name, buf_value, buf_len, cvt_func in self._ColBufferList:
+        for col_name, buf_value, buf_len, cvt_func,target_type in self._ColBufferList:
             if buf_len.value != SQL_NULL_DATA:
-                if col_name == 'bin':
+                if target_type == SQL_C_BINARY:
                     row.append(cvt_func(buf_value.raw[:buf_len.value]))
                 else:
                     row.append(cvt_func(buf_value.value))
@@ -749,10 +749,14 @@ class Cursor:
                 
             row = ROW()
             
-            for col_name, buf_value, buf_len, cvt_func in self._ColBufferList:
+            for col_name, buf_value, buf_len, cvt_func, target_type in self._ColBufferList:
                 if buf_len.value != SQL_NULL_DATA:
-                    row.append(cvt_func(buf_value.value))
-                    
+                    if target_type == SQL_C_BINARY:
+                        row.append(cvt_func(buf_value.raw[:buf_len.value]))
+                    else:
+                        row.append(cvt_func(buf_value.value))
+    
+
                 else:
                     row.append(None)
                 setattr(row,col_name,row[-1])
