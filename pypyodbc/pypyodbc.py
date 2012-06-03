@@ -598,15 +598,11 @@ class Cursor:
                 elif type(param_val) == bytearray:
                     c_char_buf = str(param_val)
                     c_buf_len = len(c_char_buf)
-                elif type(param_val) == memoryview:
-                    c_char_buf = param_val.tobytes()
-                    c_buf_len = len(c_char_buf)
-                
                 else:
                     c_char_buf = param_val
                 
 
-                if type(param_val) in (bytearray,memoryview):
+                if type(param_val) in (bytearray,):
                     param_buffer.raw, param_buffer_len.value = c_char_buf, c_buf_len
                 else:
                     param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
