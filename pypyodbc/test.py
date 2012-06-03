@@ -166,11 +166,11 @@ if __name__ == "__main__":
         print cur.description
         #Get results
         field = cur.fetchone().bin
-        file('d:/logo_'+db_desc+'.png','wb').write(field)
+        file(cur_file_dir()+'\\logo_'+db_desc+'.png','wb').write(field)
         
         
         field = cur.fetchone().bin
-        file('d:/logo2_'+db_desc+'.png','wb').write(field)
+        file(cur_file_dir()+'\\logo2_'+db_desc+'.png','wb').write(field)
 
 
         
