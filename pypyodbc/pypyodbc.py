@@ -191,42 +191,52 @@ class OdbcGenericError(Exception):
 class ProgrammingError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
     def __str__(self):
         return repr(self.value)
 
 class DataError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
     def __str__(self):
         return repr(self.value)
 
 class IntegrityError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
     def __str__(self):
         return repr(self.value)
 
 class NotSupportedError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
+
     def __str__(self):
         return repr(self.value)
 
 class DatabaseError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
+        
     def __str__(self):
         return repr(self.value)
 
 class OperationalError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
+        
     def __str__(self):
         return repr(self.value)
 
 class Error(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
     def __str__(self):
         return repr(self.value)
 
@@ -275,7 +285,7 @@ def ctrl_err(ht, h, val_ret):
                 raise NotSupportedError(state,'['+state+'] '+err_list[0][1])
             elif state in ('HYT00','HYT01'):
                 raise OperationalError(state,'['+state+'] '+err_list[0][1])
-            elif state[:2] in ('IM'):
+            elif state[:2] in ('IM','HY'):
                 raise Error(state,'['+state+'] '+err_list[0][1])
             else:
                 raise DatabaseError(state,'['+state+'] '+err_list[0][1])
