@@ -74,7 +74,7 @@ if __name__ == "__main__":
                 datetime,shijian time,riqi datetime, kong float, bin LONGBINARY)""",
         ),
         ('SQLServer',
-        pypyodbc.connect('DSN=MSSL', unicode_results = True),
+        pypyodbc.connect('DSN=MSSQL', unicode_results = True),
         u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
                 datetime,shijian time,riqi date, kong float, bin varbinary(MAX))""",
         ),
@@ -130,30 +130,28 @@ if __name__ == "__main__":
         print 'inserting...',
         start_time = time.time()
         cur = conn.cursor()
-        cur.execute(u"insert into pypyodbc_test_data values(1,'这是pypyodbc模块 :)',12.3,1234.55,?,'17:31:32','2012-11-11',NULL, ?)", (datetime.datetime.now(),ba))
+        cur.execute(u"insert into pypyodbc_test_data values(1,'这是pypyodbc模块 :)',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (ba,))
         longtext = u''.join([u'我在马路边，捡到一分钱。']*2)
-        cur.execute("insert into pypyodbc_test_data values (?,?,?,?,?,?,?,NULL,?)", \
+        cur.execute("insert into pypyodbc_test_data values (?,?,?,?,NULL,NULL,NULL,NULL,?)", \
                                 (2, \
                                 longtext,\
                                 Decimal('1233.4513'), \
                                 123.44, \
-                                datetime.datetime.now(), \
-                                datetime.datetime.now().time(),\
-                                datetime.date.today(),\
+#                                datetime.datetime.now(), \
+#                                datetime.datetime.now().time(),\
+#                                datetime.date.today(),\
                                 mv))
 
 
 
         for i in xrange(3,103):
             cur.executemany(u"""insert into pypyodbc_test_data values 
-            (?,?,12.32311, 1234.55, ?,?,'2012-12-23',NULL,NULL)""", 
-            [(i+500000, "【巴黎圣母院】".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
-            (i+100000, u"《普罗米修斯》", datetime.datetime.now(), datetime.datetime.now().time()),
-            (i+200000, "〖太极张三丰〗".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
-            (i+300000, '〖!@#$$%"^&%&〗'.decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
-            (i+400000, "〖querty-','〗".decode('utf-8'), datetime.datetime.now(), datetime.datetime.now().time()),
-            
-            ]
+            (?,?,12.32311, 1234.55, NULL,NULL,'2012-12-23',NULL,NULL)""", 
+            [(i+500000, "【巴黎圣母院】".decode('utf-8')),
+            (i+100000, u"《普罗米修斯》"),
+            (i+200000, "〖太极张三丰〗".decode('utf-8')),
+            (i+300000, '〖!@#$$%"^&%&〗'.decode('utf-8')),
+            (i+400000, "〖querty-','〗".decode('utf-8'))]\
             )
         
         print 'insert complete, total time ',
