@@ -334,7 +334,7 @@ class Cursor:
             # With query prepared, now put parameters into buffers
             col_num = 0
             for param_buffer, param_buffer_len in self._ParamBufferList:
-                c_char_buf, c_buf_len = '', 102400
+                c_char_buf, c_buf_len = '', 10240000
                 param_val = params[col_num]
                 if param_val == None:
                     c_buf_len = -1
@@ -375,12 +375,15 @@ class Cursor:
                 elif type(param_val) == bytearray:
                     c_char_buf = str(param_val)
                     c_buf_len = len(c_char_buf)
+                elif type(param_val) == memoryview:
+                    c_char_buf = param_val.tobytes()
+                    c_buf_len = len(c_char_buf)
                 
                 else:
                     c_char_buf = param_val
                 
 
-                if type(param_val) in (bytearray,):
+                if type(param_val) in (bytearray,memoryview):
                     param_buffer.raw, param_buffer_len.value = c_char_buf, c_buf_len
                 else:
                     param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
@@ -515,7 +518,7 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             '''
             prec = 0
-            buf_size = 102400
+            buf_size = 10240000
         
             if param_types[col_num] == int:
                 sql_c_type = SQL_C_LONG             
@@ -604,7 +607,7 @@ class Cursor:
             else:
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
-                buf_size = 512000 #100kB
+                buf_size = 10240000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_string_buffer(buf_size)
                 BufferLen = ctypes.c_long(buf_size)
