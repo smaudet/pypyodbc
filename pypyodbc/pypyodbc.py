@@ -188,6 +188,47 @@ class OdbcGenericError(Exception):
         self.value = value
     def __str__(self):
         return repr(self.value)
+class ProgrammingError(Exception):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+    def __str__(self):
+        return repr(self.value)
+
+class DataError(Exception):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+    def __str__(self):
+        return repr(self.value)
+
+class IntegrityError(Exception):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+    def __str__(self):
+        return repr(self.value)
+
+class NotSupportedError(Exception):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+    def __str__(self):
+        return repr(self.value)
+
+class DatabaseError(Exception):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+    def __str__(self):
+        return repr(self.value)
+
+class OperationalError(Exception):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+    def __str__(self):
+        return repr(self.value)
+
+class Error(Exception):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+    def __str__(self):
+        return repr(self.value)
 
 
 
@@ -223,7 +264,21 @@ def ctrl_err(ht, h, val_ret):
         if ret == SQL_NO_DATA_FOUND:
             #No more data, I can raise
             if DEBUG: print err_list[0][1]
-            raise OdbcGenericError, err_list
+            state = err_list[0][0]
+            if state[:2] in ('24','25','42'):
+                raise ProgrammingError(state,'['+state+'] '+err_list[0][1])
+            elif state[:2] in ('22'):
+                raise DataError(state,'['+state+'] '+err_list[0][1])
+            elif state[:2] in ('23') or state == '40002':
+                raise IntegrityError(state,'['+state+'] '+err_list[0][1])
+            elif state == '0A000':
+                raise NotSupportedError(state,'['+state+'] '+err_list[0][1])
+            elif state in ('HYT00','HYT01'):
+                raise OperationalError(state,'['+state+'] '+err_list[0][1])
+            elif state[:2] in ('IM'):
+                raise Error(state,'['+state+'] '+err_list[0][1])
+            else:
+                raise DatabaseError(state,'['+state+'] '+err_list[0][1])
             break
         elif ret == SQL_INVALID_HANDLE:
             #The handle passed is an invalid handle
@@ -306,161 +361,13 @@ class Cursor:
     def setoutputsize(self, size, column = None):
         self._outputsize[column] = size
 
-    
-    def executemany(self, query_string, params_list = [None]):
-        self.prepare(query_string)
-        for params in params_list:
-            self.execute(query_string, params, stmt_prepared = True)
-    
-    def execute(self, query_string, params = None, stmt_prepared = False):
-        """ Execute the query string, with optional parameters.
-        If parameters are provided, the query would first be prepared, then executed with parameters;
-        If parameters are not provided, only th query sting, it would be executed directly 
-        """
-        if params != None:
-            # If parameters exist, first prepare the query then executed with parameters
-            if not type(params) in (tuple, list):
-                raise Exception
-            
-            if not stmt_prepared:
-                if query_string != self.statement:
-                    # if the query is not same as last query, then it is not prepared
-                    self.prepare(query_string)
-                    
-            param_types = [type(p) for p in params]
-            if param_types != self._last_param_types:
-                self._BindParams(param_types)
-            
-            # With query prepared, now put parameters into buffers
-            col_num = 0
-            for param_buffer, param_buffer_len in self._ParamBufferList:
-                c_char_buf, c_buf_len = '', 10240000
-                param_val = params[col_num]
-                if param_val == None:
-                    c_buf_len = -1
-                elif type(param_val) == datetime.datetime:
-                    c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
-                    datetime_str = param_val.isoformat().replace('T',' ') 
-                    if len(datetime_str) == 19:
-                        datetime_str += '.000'
-                    c_char_buf = datetime_str[:c_buf_len]
-                    if DEBUG: print c_buf_len, c_char_buf
-                elif type(param_val) == datetime.date:
-                    if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
-                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
-                    else:
-                        c_buf_len = 10
-                    c_char_buf = param_val.isoformat()[:c_buf_len]
-                    if DEBUG: print c_char_buf
-                elif type(param_val) == datetime.time:
-                    if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
-                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
-                        c_char_buf = param_val.isoformat()[0:c_buf_len]
-                    else:
-                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
-                        time_str = param_val.isoformat()
-                        if len(time_str) == 8:
-                            time_str += '.000'
-                        c_char_buf = '1900-01-01 '+time_str[0:c_buf_len - 11]
-                    if DEBUG: print c_buf_len, c_char_buf
-                elif type(param_val) == Decimal:
-                    c_char_buf = float(param_val)
-                elif type(param_val) == str:
-                    c_char_buf = param_val
-                    c_buf_len = len(param_val)
-                elif type(param_val) == unicode:
-                    c_char_buf = param_val
-                    c_buf_len = len(param_val)
-                    if DEBUG: print c_buf_len
-                elif type(param_val) == bytearray:
-                    c_char_buf = str(param_val)
-                    c_buf_len = len(c_char_buf)
-                elif type(param_val) == memoryview:
-                    c_char_buf = param_val.tobytes()
-                    c_buf_len = len(c_char_buf)
-                
-                else:
-                    c_char_buf = param_val
-                
-
-                if type(param_val) in (bytearray,memoryview):
-                    param_buffer.raw, param_buffer_len.value = c_char_buf, c_buf_len
-                else:
-                    param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
-                if type(param_val) in (unicode,):
-                    param_buffer_len.value = len(param_buffer)
-
-                col_num += 1
-
-    
-            ret = ODBC_API.SQLExecute(self._stmt_h)
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            self.NumOfRows()
-            self._UpdateDesc()
-            self._BindCols()
-            
-        else:
-            self.execdirect(query_string)
-        return (self)
-            
-    def prepare(self, query_string):
-        """prepare a query"""
-        if type(query_string) == unicode:
-            ret = ODBC_API.SQLPrepareW(self._stmt_h, query_string, len(query_string))
-        else:
-            ret = ODBC_API.SQLPrepare(self._stmt_h, query_string, len(query_string))
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        self.statement = query_string
-        
-    
-    def execdirect(self, query_string):
-        """Execute a query directly"""
-        if type(query_string) == unicode:
-            ret = ODBC_API.SQLExecDirectW(self._stmt_h, query_string, len(query_string))
-        else:
-            ret = ODBC_API.SQLExecDirect(self._stmt_h, query_string, len(query_string))
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        self.NumOfRows()
-        self._UpdateDesc()
-        self._BindCols()
-        return (self)
-        
-        
-    
-    def _UpdateDesc(self):
-        "Get the information of (name, type_code, display_size, internal_size, precision, scale, null_ok)"  
-        Cname = ctypes.create_string_buffer(1024)
-        Cname_ptr = ctypes.c_int()
-        Ctype_code = ctypes.c_short()
-        Csize = ctypes.c_int()
-        Cdisp_size = ctypes.c_int(0)
-        Cprecision = ctypes.c_int()
-        Cnull_ok = ctypes.c_int()
-        ColDescr = []
-        self._ColTypeCodeList = []
-        NOC = self.NumOfCols()
-        for col in range(1, NOC+1):
-            ret = ODBC_API.SQLColAttribute(self._stmt_h, col, SQL_DESC_DISPLAY_SIZE, ADDR(ctypes.create_string_buffer(10)), 
-                10, ADDR(ctypes.c_int()),ADDR(Cdisp_size))
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            
-            ret = ODBC_API.SQLDescribeCol(self._stmt_h, col, ADDR(Cname), len(Cname), ADDR(Cname_ptr),\
-                ADDR(Ctype_code),ADDR(Csize),ADDR(Cprecision), ADDR(Cnull_ok))
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            
-            
-            ColDescr.append((Cname.value, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
-                Csize.value,Cprecision.value, None,Cnull_ok.value == 1 and True or False))
-            self._ColTypeCodeList.append(Ctype_code.value)
-        self.description = ColDescr
-        
 
     
     def _BindCols(self):
         '''Bind buffers for the record set columns'''
         NOC = self.NumOfCols()
         col_buffer_list = []
-
+    
         for col_num in range(NOC):
             col_name = self.description[col_num][0]
             col_type_code = self._ColTypeCodeList[col_num]
@@ -471,14 +378,14 @@ class Cursor:
                 default_output_size = self._outputsize[None]
                 total_buf_len = self._outputsize.get(col_num,default_output_size)
                 
-            if DEBUG: print self.description[col_num][0]+' binded buffer size: '+ str(total_buf_len)
+
             
             alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
             used_buf_len = ctypes.c_long()
             
             target_type = SqlTypes[col_type_code][2]
             force_unicode = self.connection.unicode_results
-
+    
             if force_unicode and col_type_code in (SQL_CHAR,SQL_VARCHAR,SQL_LONGVARCHAR):
                 target_type = SQL_C_WCHAR
                 alloc_buffer = create_buffer_u(total_buf_len)
@@ -502,7 +409,9 @@ class Cursor:
         
         if len(param_types) != NumParams.value:
             # In case number of parameters provided do not same as number required
-            raise Exception
+            error_desc = "The SQL contains %d parameter markers, but %d parameters were supplied" \
+                        %(NumParams.value,len(param_types))
+            raise ProgrammingError(error_desc,'HY000')
         
         
         # Every parameter needs to be binded to a buffer
@@ -620,7 +529,162 @@ class Cursor:
                 
         self._last_param_types = param_types
         self._ParamBufferList = ParamBufferList
+    
+            
+            
+            
+            
+    
+    def execute(self, query_string, params = None, stmt_prepared = False):
+        """ Execute the query string, with optional parameters.
+        If parameters are provided, the query would first be prepared, then executed with parameters;
+        If parameters are not provided, only th query sting, it would be executed directly 
+        """
+        if params != None:
+            # If parameters exist, first prepare the query then executed with parameters
+            if not type(params) in (tuple, list):
+                raise TypeError("Params must be in a list, tuple, or Row")
+            
+            if not stmt_prepared:
+                if query_string != self.statement:
+                    # if the query is not same as last query, then it is not prepared
+                    self.prepare(query_string)
+                    
+            param_types = [type(p) for p in params]
+            if param_types != self._last_param_types:
+                self._BindParams(param_types)
+            
+            # With query prepared, now put parameters into buffers
+            col_num = 0
+            for param_buffer, param_buffer_len in self._ParamBufferList:
+                c_char_buf, c_buf_len = '', 10240000
+                param_val = params[col_num]
+                if param_val == None:
+                    c_buf_len = -1
+                elif type(param_val) == datetime.datetime:
+                    c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                    datetime_str = param_val.isoformat().replace('T',' ') 
+                    if len(datetime_str) == 19:
+                        datetime_str += '.000'
+                    c_char_buf = datetime_str[:c_buf_len]
+                    if DEBUG: print c_buf_len, c_char_buf
+                elif type(param_val) == datetime.date:
+                    if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
+                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
+                    else:
+                        c_buf_len = 10
+                    c_char_buf = param_val.isoformat()[:c_buf_len]
+                    if DEBUG: print c_char_buf
+                elif type(param_val) == datetime.time:
+                    if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
+                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
+                        c_char_buf = param_val.isoformat()[0:c_buf_len]
+                    else:
+                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                        time_str = param_val.isoformat()
+                        if len(time_str) == 8:
+                            time_str += '.000'
+                        c_char_buf = '1900-01-01 '+time_str[0:c_buf_len - 11]
+                    if DEBUG: print c_buf_len, c_char_buf
+                elif type(param_val) == Decimal:
+                    c_char_buf = float(param_val)
+                elif type(param_val) == str:
+                    c_char_buf = param_val
+                    c_buf_len = len(param_val)
+                elif type(param_val) == unicode:
+                    c_char_buf = param_val
+                    c_buf_len = len(param_val)
+                    if DEBUG: print c_buf_len
+                elif type(param_val) == bytearray:
+                    c_char_buf = str(param_val)
+                    c_buf_len = len(c_char_buf)
+                elif type(param_val) == memoryview:
+                    c_char_buf = param_val.tobytes()
+                    c_buf_len = len(c_char_buf)
+                
+                else:
+                    c_char_buf = param_val
+                
 
+                if type(param_val) in (bytearray,memoryview):
+                    param_buffer.raw, param_buffer_len.value = c_char_buf, c_buf_len
+                else:
+                    param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
+                if type(param_val) in (unicode,):
+                    param_buffer_len.value = len(param_buffer)
+
+                col_num += 1
+
+    
+            ret = ODBC_API.SQLExecute(self._stmt_h)
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            self.NumOfRows()
+            self._UpdateDesc()
+            self._BindCols()
+            
+        else:
+            self.execdirect(query_string)
+        return (self)
+            
+    
+    def executemany(self, query_string, params_list = [None]):
+        self.prepare(query_string)
+        for params in params_list:
+            self.execute(query_string, params, stmt_prepared = True)
+            
+            
+            
+    def prepare(self, query_string):
+        """prepare a query"""
+        if type(query_string) == unicode:
+            ret = ODBC_API.SQLPrepareW(self._stmt_h, query_string, len(query_string))
+        else:
+            ret = ODBC_API.SQLPrepare(self._stmt_h, query_string, len(query_string))
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        self.statement = query_string
+        
+    
+    def execdirect(self, query_string):
+        """Execute a query directly"""
+        if type(query_string) == unicode:
+            ret = ODBC_API.SQLExecDirectW(self._stmt_h, query_string, len(query_string))
+        else:
+            ret = ODBC_API.SQLExecDirect(self._stmt_h, query_string, len(query_string))
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        return (self)
+        
+        
+    
+    def _UpdateDesc(self):
+        "Get the information of (name, type_code, display_size, internal_size, precision, scale, null_ok)"  
+        Cname = ctypes.create_string_buffer(1024)
+        Cname_ptr = ctypes.c_int()
+        Ctype_code = ctypes.c_short()
+        Csize = ctypes.c_int()
+        Cdisp_size = ctypes.c_int(0)
+        Cprecision = ctypes.c_int()
+        Cnull_ok = ctypes.c_int()
+        ColDescr = []
+        self._ColTypeCodeList = []
+        NOC = self.NumOfCols()
+        for col in range(1, NOC+1):
+            ret = ODBC_API.SQLColAttribute(self._stmt_h, col, SQL_DESC_DISPLAY_SIZE, ADDR(ctypes.create_string_buffer(10)), 
+                10, ADDR(ctypes.c_int()),ADDR(Cdisp_size))
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            
+            ret = ODBC_API.SQLDescribeCol(self._stmt_h, col, ADDR(Cname), len(Cname), ADDR(Cname_ptr),\
+                ADDR(Ctype_code),ADDR(Csize),ADDR(Cprecision), ADDR(Cnull_ok))
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            
+            
+            ColDescr.append((Cname.value, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
+                Csize.value,Cprecision.value, None,Cnull_ok.value == 1 and True or False))
+            self._ColTypeCodeList.append(Ctype_code.value)
+        self.description = ColDescr
+        
     
     def NumOfRows(self):
         """Get the number of rows"""
