@@ -71,50 +71,34 @@ SQL_UNBIND = 2
 SQL_CLOSE = 0
 
 SQL_TYPE_NULL = 0
-SQL_CHAR = 1
-SQL_NUMERIC = 2
 SQL_DECIMAL = 3
-SQL_INTEGER = 4
-SQL_SMALLINT = 5
 SQL_FLOAT = 6
-SQL_REAL = 7
-SQL_DOUBLE = 8
 SQL_DATE = 9
 SQL_TIME = 10
 SQL_TIMESTAMP = 11
 SQL_VARCHAR = 12
 SQL_LONGVARCHAR = -1
-SQL_BINARY = -2
 SQL_VARBINARY = -3
 SQL_LONGVARBINARY = -4
 SQL_BIGINT = -5
-SQL_TINYINT = -6
-SQL_BIT = -7
-SQL_WCHAR = -8
 SQL_WVARCHAR = -9
 SQL_WLONGVARCHAR = -10
-SQL_TYPE_DATE = 91
-SQL_TYPE_TIME = 92
-SQL_TYPE_TIMESTAMP = 93
 SQL_ALL_TYPES = 0
 
-SQL_C_CHAR = SQL_CHAR
-SQL_C_NUMERIC = SQL_NUMERIC
-SQL_C_LONG = SQL_INTEGER
-SQL_C_SHORT = SQL_SMALLINT
-SQL_C_FLOAT = SQL_REAL
-SQL_C_DOUBLE = SQL_DOUBLE
-SQL_C_TYPE_DATE = SQL_TYPE_DATE
-SQL_C_TYPE_TIME = SQL_TYPE_TIME
-SQL_C_BINARY = SQL_BINARY
-SQL_C_BINARY = SQL_BINARY
-SQL_C_LONG = SQL_INTEGER
-SQL_C_TINYINT = SQL_TINYINT
-SQL_C_BIT = SQL_BIT
-SQL_C_WCHAR = SQL_WCHAR
-SQL_C_TYPE_TIMESTAMP = SQL_TYPE_TIMESTAMP
-SQL_C_TYPE_TIME = SQL_TYPE_TIME
-SQL_C_TYPE_DATE = SQL_TYPE_DATE
+SQL_C_CHAR =            SQL_CHAR =          1
+SQL_C_NUMERIC =         SQL_NUMERIC =       2
+SQL_C_LONG =            SQL_INTEGER =       4
+SQL_C_SHORT =           SQL_SMALLINT =      5
+SQL_C_FLOAT =           SQL_REAL =          7
+SQL_C_DOUBLE =          SQL_DOUBLE =        8
+SQL_C_TYPE_DATE =       SQL_TYPE_DATE =     91
+SQL_C_TYPE_TIME =       SQL_TYPE_TIME =     92
+SQL_C_BINARY =          SQL_BINARY =        -2
+SQL_C_TINYINT =         SQL_TINYINT =       -6
+SQL_C_BIT =             SQL_BIT =           -7
+SQL_C_WCHAR =           SQL_WCHAR =         -8
+SQL_C_TYPE_TIMESTAMP =  SQL_TYPE_TIMESTAMP = 93
+
 SQL_DESC_DISPLAY_SIZE = SQL_COLUMN_DISPLAY_SIZE
 
 def dttm_cvt(x):
@@ -192,53 +176,42 @@ class ProgrammingError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
-    def __str__(self):
-        return repr(self.value)
+
 
 class DataError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
-    def __str__(self):
-        return repr(self.value)
+
 
 class IntegrityError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
-    def __str__(self):
-        return repr(self.value)
 
 class NotSupportedError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
 
-    def __str__(self):
-        return repr(self.value)
 
 class DatabaseError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
-        
-    def __str__(self):
-        return repr(self.value)
+
 
 class OperationalError(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
-        
-    def __str__(self):
-        return repr(self.value)
+
 
 class Error(Exception):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
-    def __str__(self):
-        return repr(self.value)
+
 
 
 
@@ -296,12 +269,12 @@ def ctrl_err(ht, h, val_ret):
         elif ret == SQL_SUCCESS:
             err_list.append((state.value, Message.value, NativeError.value))
             number_errors += 1
+
             
 def validate(ret, handle_type, handle):
     """ Validate return value, if not success, raise exceptions based on the handle """
     if ret not in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
         ctrl_err(handle_type, handle, ret)
-
             
 
 def dataSources():
@@ -362,7 +335,7 @@ class Cursor:
         self._outputsize = {}
         self._inputsizers = []
         self._stmt_h = ctypes.c_int()
-        self.setoutputsize(10240000) #10MB as the defalt buffer size for large column
+        self.setoutputsize(512000) #512KB as the defalt buffer size for large column
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self.connection.dbc_h, ADDR(self._stmt_h))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.closed = False
