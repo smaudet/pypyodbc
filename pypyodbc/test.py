@@ -11,10 +11,10 @@ def main():
     print (DSN_list)
 
     
-    for db_desc, conn_string, create_table_sql in database_strings:
+    for database_name, conn_string, create_table_sql in database_strings:
         
         print ' *'.join(['' for i in range(40)])
-        print ' '*26 + db_desc 
+        print ' '*26 + database_name 
         print ' *'.join(['' for i in range(40)])
         
         conn = pypyodbc.connect(conn_string, unicode_results = True)
@@ -80,9 +80,9 @@ def main():
         
         #Get results
         field = cur.fetchone().bin_logo
-        file(cur_file_dir()+'\\logo_'+db_desc+'.gif','wb').write(field)
+        file(cur_file_dir()+'\\logo_'+database_name+'.gif','wb').write(field)
         field = cur.fetchone().bin_logo
-        file(cur_file_dir()+'\\logo2_'+db_desc+'.gif','wb').write(field)
+        file(cur_file_dir()+'\\logo2_'+database_name+'.gif','wb').write(field)
 
 
         
