@@ -10,12 +10,6 @@ def main():
     DSN_list = pypyodbc.dataSources()
     print (DSN_list)
     
-    
-    mdb_path = cur_file_dir()+u'\\e.mdb'
-
-    if hasattr(pypyodbc,'win_create_mdb'):
-        pypyodbc.win_create_mdb(mdb_path.encode('mbcs'))
-
     conxs = [\
         ('Access',
         pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+mdb_path, unicode_results = True),
@@ -42,9 +36,9 @@ def main():
     
     for db_desc, conn, create_table_sql in conxs:
         
-        print ' *'.join(['' for i in range(50)])
-        print ' '*20 + db_desc 
-        print ' *'.join(['' for i in range(50)])
+        print ' *'.join(['' for i in range(40)])
+        print ' '*26 + db_desc 
+        print ' *'.join(['' for i in range(40)])
         
         
         
@@ -229,6 +223,16 @@ if __name__ == "__main__":
     else:
         print 'running pypyodbc'
         import pypyodbc as pypyodbc
+        
+        
+        
+    mdb_path = cur_file_dir()+u'\\e.mdb'
+    
+    if hasattr(pypyodbc,'win_create_mdb'):
+        pypyodbc.win_create_mdb(mdb_path.encode('mbcs'))
+        
+        
+        
     if 'profile' in sys.argv:
         import cProfile
         cProfile.run('main()')
