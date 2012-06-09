@@ -13,9 +13,7 @@ def main():
     
     for database_name, conn_string, create_table_sql in database_strings:
         
-        print ' *'.join(['' for i in range(40)])
-        print ' '*26 + database_name 
-        print ' *'.join(['' for i in range(40)])
+        print_header(database_name)
         
         conn = pypyodbc.connect(conn_string, unicode_results = True)
         
@@ -189,7 +187,10 @@ def u8_enc(v, force_str = False):
 def cur_file_dir():
     return os.path.dirname(os.path.realpath(sys.argv[0]))
 
-
+def print_header(database_name):
+    print ' *'.join(['' for i in range(40)])
+    print ' '*26 + database_name 
+    print ' *'.join(['' for i in range(40)])
 
         
 
