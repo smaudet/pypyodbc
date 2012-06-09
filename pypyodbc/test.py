@@ -10,37 +10,37 @@ def main():
     DSN_list = pypyodbc.dataSources()
     print (DSN_list)
     
-    conxs = [\
+    database_strings = [\
         ('Access',
-        pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+mdb_path, unicode_results = True),
+        u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+mdb_path,
         u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi datetime, kong float, bin_logo LONGBINARY)""",
         ),
 #        ('SQLServer',
-#        pypyodbc.connect('DSN=MSSQL', unicode_results = True),
+#        'DSN=MSSQL',
 #        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
 #                datetime,shijian time,riqi date, kong float, bin_logo varbinary(5000))""",
 #        ),
 #        ('MySQL',
-#        pypyodbc.connect('DSN=MYSQL', unicode_results = True),
+#        'DSN=MYSQL',
 #        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
 #                datetime,shijian time,riqi date, kong float, bin_logo BLOB)""",
 #        
 #        ),
 #        ('PostgreSQL',
-#        pypyodbc.connect('DSN=PostgreSQL35W', unicode_results = True),
+#        'DSN=PostgreSQL35W',
 #        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
 #                        timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
 #        ),
         ]
     
-    for db_desc, conn, create_table_sql in conxs:
+    for db_desc, conn_string, create_table_sql in database_strings:
         
         print ' *'.join(['' for i in range(40)])
         print ' '*26 + db_desc 
         print ' *'.join(['' for i in range(40)])
         
-        
+        conn = pypyodbc.connect(conn_string, unicode_results = True)
         
         cur = conn.cursor()
         has_table_data = cur.tables(table='pypyodbc_test_data').fetchone()
@@ -218,10 +218,10 @@ def cur_file_dir():
 
 if __name__ == "__main__":
     if 'pyodbc' in sys.argv:
-        print 'running pyodbc'
+        print 'Running with pyodbc'
         import pyodbc as pypyodbc
     else:
-        print 'running pypyodbc'
+        print 'Running with pypyodbc'
         import pypyodbc as pypyodbc
         
         
