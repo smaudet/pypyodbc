@@ -20,41 +20,31 @@ def main():
         ('Access',
         pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+mdb_path, unicode_results = True),
         u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
-                datetime,shijian time,riqi datetime, kong float, bin LONGBINARY)""",
+                datetime,shijian time,riqi datetime, kong float, bin_logo LONGBINARY)""",
         ),
 #        ('SQLServer',
 #        pypyodbc.connect('DSN=MSSQL', unicode_results = True),
 #        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-#                datetime,shijian time,riqi date, kong float, bin varbinary(5000))""",
+#                datetime,shijian time,riqi date, kong float, bin_logo varbinary(5000))""",
 #        ),
 #        ('MySQL',
 #        pypyodbc.connect('DSN=MYSQL', unicode_results = True),
 #        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-#                datetime,shijian time,riqi date, kong float, bin BLOB)""",
+#                datetime,shijian time,riqi date, kong float, bin_logo BLOB)""",
 #        
 #        ),
 #        ('PostgreSQL',
 #        pypyodbc.connect('DSN=PostgreSQL35W', unicode_results = True),
 #        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-#                        timestamp,shijian time,riqi date, kong float, bin bytea)""",
+#                        timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
 #        ),
         ]
     
     for db_desc, conn, create_table_sql in conxs:
-        '''
-        cur = conn.cursor()
-        for row in (cur.getTypeInfo().fetchall()):
-            i = 1
-            for field in row:
-                print i,
-                print field
-                i += 1
-        cur = None
-        '''
-
-        print ' *'.join(['' for i in range(80)])
+        
+        print ' *'.join(['' for i in range(50)])
         print ' '*20 + db_desc 
-        print ' *'.join(['' for i in range(80)])
+        print ' *'.join(['' for i in range(50)])
         
         
         
@@ -68,6 +58,7 @@ def main():
         cur = conn.cursor()
         if has_table_data:
             cur.execute('Drop table pypyodbc_test_data;')
+            
         cur.execute(create_table_sql)
         conn.commit()
         
@@ -76,11 +67,11 @@ def main():
             print row
         cur.close()
         
-        print 'inserting...',
+        print 'Inserting rows now ...',
         start_time = time.time()
         cur = conn.cursor()
         cur.execute(u"insert into pypyodbc_test_data values(1,'这是pypyodbc模块 :)',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (ba,))
-        longtext = u''.join([u'我在马路边，捡到一分钱。']*2)
+        longtext = u''.join([u'我在马路边，捡到一分钱。']*25)
         cur.execute("insert into pypyodbc_test_data values (?,?,?,?,NULL,NULL,NULL,NULL,?)", \
                                 (2, \
                                 longtext,\
@@ -103,8 +94,9 @@ def main():
             (i+400000, "〖querty-','〗".decode('utf-8'))]\
             )
         
-        print 'insert complete, total time ',
         end_time = time.time()
+        
+        print 'Inserting completed, total time ',
         print end_time-start_time
         conn.commit()
         print 'commit comlete, commit time ',
@@ -113,12 +105,12 @@ def main():
 
         cur.execute(u"""select * from pypyodbc_test_data""")
         print cur.description
+
+        
         #Get results
-        field = cur.fetchone().bin
+        field = cur.fetchone().bin_logo
         file(cur_file_dir()+'\\logo_'+db_desc+'.gif','wb').write(field)
-        
-        
-        field = cur.fetchone().bin
+        field = cur.fetchone().bin_logo
         file(cur_file_dir()+'\\logo2_'+db_desc+'.gif','wb').write(field)
 
 
@@ -126,15 +118,12 @@ def main():
         for row in cur.fetchmany(6):
             for field in row:
                 print type(field),
-                if isinstance(field, unicode):
-                    print field.encode('mbcs'),
-                elif isinstance(field, bytearray):
-                    pass
-                else:
-                    print field,
+                if isinstance(field, unicode): print field.encode('mbcs'),
+                elif isinstance(field, bytearray): pass
+                else: print field,
             print ('')
         
-        #print (len(cur.fetchall()))
+
         
         cur.close()
         cur = conn.cursor()
@@ -151,7 +140,6 @@ def main():
                     print field.encode('mbcs'),
                 elif isinstance(field, bytearray):
                     pass
-
                 else:
                     print field,
                 print '|',
@@ -171,7 +159,6 @@ def main():
                 print field.encode('mbcs'),
             elif isinstance(field, bytearray):
                     pass
-
             else:
                 print field,
         print ('')
@@ -214,9 +201,6 @@ ba = bytearray(binary_data)
 mv = bytearray(binary_data)
 
 
-def cur_file_dir():
-    return os.path.dirname(os.path.realpath(sys.argv[0]))
-
 #c_Path = ctypes.create_string_buffer(u"CREATE_DB=.\\e.mdb General\0\0".encode('mbcs'))
 #ODBC_ADD_SYS_DSN = 1
 #ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
@@ -230,9 +214,15 @@ def u8_enc(v, force_str = False):
         if force_str: return (str(v))
         else: return (v)
 
+
+def cur_file_dir():
+    return os.path.dirname(os.path.realpath(sys.argv[0]))
+
+
+
+        
+
 if __name__ == "__main__":
-    
-    
     if 'pyodbc' in sys.argv:
         print 'running pyodbc'
         import pyodbc as pypyodbc
