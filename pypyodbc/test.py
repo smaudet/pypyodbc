@@ -15,7 +15,7 @@ def main():
         
         cur = conn.cursor()
         if has_table_data:
-            cur.execute('Drop table pypyodbc_test_table;')
+            cur.execute('Drop table pypyodbc_test_table')
             
         cur.execdirect(create_table_sql)
         conn.commit()
