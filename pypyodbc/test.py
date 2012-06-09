@@ -1,42 +1,36 @@
 # -*- coding: utf-8 -*-
-import sys, os
-import time, datetime
+import sys, os, time, datetime
 from decimal import Decimal
-
 
 
 def main():
     for database_name, conn_string, create_table_sql in database_strings:
-        
         print_header(database_name)
         
         conn = pypyodbc.connect(conn_string, unicode_results = True)
-        
         cur = conn.cursor()
-        has_table_data = cur.tables(table='pypyodbc_test_data').fetchone()
-        print 'has table "pypyodbc_test_data"?' + str(has_table_data)
+        has_table_data = cur.tables(table='pypyodbc_test_table').fetchone()
+        print 'Has table "pypyodbc_test_table"? ' + str(has_table_data)
         cur.close()
-        
-        
         
         cur = conn.cursor()
         if has_table_data:
-            cur.execute('Drop table pypyodbc_test_data;')
+            cur.execute('Drop table pypyodbc_test_table;')
             
-        cur.execute(create_table_sql)
+        cur.execdirect(create_table_sql)
         conn.commit()
         
         
-        for row in cur.columns(table='pypyodbc_test_data').fetchall():
+        for row in cur.columns(table='pypyodbc_test_table').fetchall():
             print row
         cur.close()
         
         print 'Inserting rows now ...',
         start_time = time.time()
         cur = conn.cursor()
-        cur.execute(u"insert into pypyodbc_test_data values(1,'这是pypyodbc模块 :)',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (ba,))
+        cur.execute(u"insert into pypyodbc_test_table values(1,'这是pypyodbc模块 :)',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (ba,))
         longtext = u''.join([u'我在马路边，捡到一分钱。']*25)
-        cur.execute("insert into pypyodbc_test_data values (?,?,?,?,NULL,NULL,NULL,NULL,?)", \
+        cur.execute("insert into pypyodbc_test_table values (?,?,?,?,NULL,NULL,NULL,NULL,?)", \
                                 (2, \
                                 longtext,\
                                 Decimal('1233.4513'), \
@@ -49,7 +43,7 @@ def main():
 
 
         for i in xrange(3,1003):
-            cur.executemany(u"""insert into pypyodbc_test_data values 
+            cur.executemany(u"""insert into pypyodbc_test_table values 
             (?,?,12.32311, 1234.55, NULL,NULL,'2012-12-23',NULL,NULL)""", 
             [(i+500000, "【巴黎圣母院】".decode('utf-8')),
             (i+100000, u"《普罗米修斯》"),
@@ -67,7 +61,7 @@ def main():
         print time.time() - end_time
 
 
-        cur.execute(u"""select * from pypyodbc_test_data""")
+        cur.execute(u"""select * from pypyodbc_test_table""")
         print cur.description
 
         
@@ -91,9 +85,9 @@ def main():
         
         cur.close()
         cur = conn.cursor()
-        #cur.execute(u"delete from pypyodbc_test_data ".encode('mbcs'))
+        #cur.execute(u"delete from pypyodbc_test_table ".encode('mbcs'))
         
-        cur.execute(u"""select * from pypyodbc_test_data""")
+        cur.execute(u"""select * from pypyodbc_test_table""")
 
         #Get results
         
@@ -114,11 +108,11 @@ def main():
         cur = conn.cursor()
         start_time =  time.time()
         print 'updating one column...',
-        cur.execute(u'update pypyodbc_test_data set 数量 = ? where 数量 > 0 '.encode('mbcs'),(time.time(),))
+        cur.execute(u'update pypyodbc_test_table set 数量 = ? where 数量 > 0 '.encode('mbcs'),(time.time(),))
         print 'updated: '+str(cur.rowcount),
         print ' total time: '+ str(time.time()-start_time)
         conn.commit()
-        for field in cur.execute(u"""select * from pypyodbc_test_data""").fetchone():
+        for field in cur.execute(u"""select * from pypyodbc_test_table""").fetchone():
             if isinstance(field, unicode):
                 print field.encode('mbcs'),
             elif isinstance(field, bytearray):
@@ -207,23 +201,23 @@ if __name__ == "__main__":
         database_strings = [\
             ('Access',
             u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+mdb_path,
-            u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
+            u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
                     datetime,shijian time,riqi datetime, kong float, bin_logo LONGBINARY)""",
             ),
     #        ('SQLServer',
     #        'DSN=MSSQL',
-    #        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+    #        u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
     #                datetime,shijian time,riqi date, kong float, bin_logo varbinary(5000))""",
     #        ),
     #        ('MySQL',
     #        'DSN=MYSQL',
-    #        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+    #        u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
     #                datetime,shijian time,riqi date, kong float, bin_logo BLOB)""",
     #        
     #        ),
     #        ('PostgreSQL',
     #        'DSN=PostgreSQL35W',
-    #        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+    #        u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
     #                        timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
     #        ),
             ]
