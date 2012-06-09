@@ -6,11 +6,6 @@ from decimal import Decimal
 
 
 def main():
-    pypyodbc.DEBUG = 0
-    DSN_list = pypyodbc.dataSources()
-    print (DSN_list)
-
-    
     for database_name, conn_string, create_table_sql in database_strings:
         
         print_header(database_name)
@@ -233,6 +228,10 @@ if __name__ == "__main__":
     #        ),
             ]
         
+        
+    pypyodbc.DEBUG = 0
+    DSN_list = pypyodbc.dataSources()
+    print (DSN_list)
         
         
     if 'profile' in sys.argv:
