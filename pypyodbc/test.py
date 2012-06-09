@@ -28,7 +28,7 @@ def main():
         print 'Inserting rows now ...',
         start_time = time.time()
         cur = conn.cursor()
-        cur.execute(u"insert into pypyodbc_test_table values(1,'这是pypyodbc模块 :)',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (ba,))
+        cur.execute(u"insert into pypyodbc_test_table values(1,'这是pypyodbc模块 :)',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (binary_logo,))
         longtext = u''.join([u'我在马路边，捡到一分钱。']*25)
         cur.execute("insert into pypyodbc_test_table values (?,?,?,?,NULL,NULL,NULL,NULL,?)", \
                                 (2, \
@@ -155,7 +155,7 @@ def main():
 import base64
 binary_data = base64.b64decode('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')
 
-ba = bytearray(binary_data)
+binary_logo = bytearray(binary_data)
 mv = bytearray(binary_data)
 
 
