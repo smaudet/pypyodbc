@@ -489,7 +489,7 @@ class Cursor:
             elif param_types[col_num] == bytearray:
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
-                buf_size = 102400 #1MB
+                buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_string_buffer(buf_size)
                 
@@ -497,7 +497,7 @@ class Cursor:
             else:
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = 102400 #1MB
+                buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_string_buffer(buf_size)
                 
@@ -586,17 +586,18 @@ class Cursor:
                 
 
                 if type(param_val) in (bytearray,):
-                    param_buffer.raw, param_buffer_len.value = c_char_buf, c_buf_len
+                    param_buffer.raw = c_char_buf
                 else:
-                    param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
-                    if type(param_val) in (unicode,):
-                        param_buffer_len.value = len(param_buffer)
+                    param_buffer.value = c_char_buf
+                    
+                if type(param_val) in (unicode,):
+                    param_buffer_len.value = len(param_buffer)
+                else:
+                    param_buffer_len.value = c_buf_len
 
                 col_num += 1
 
-    
-            ret = ODBC_API.SQLExecute(self._stmt_h)
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            self.execu()
             self.NumOfRows()
             self._UpdateDesc()
             self._BindCols()
@@ -604,7 +605,11 @@ class Cursor:
         else:
             self.execdirect(query_string)
         return (self)
-            
+    
+    def execu(self):
+        ret = ODBC_API.SQLExecute(self._stmt_h)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        
     
     def executemany(self, query_string, params_list = [None]):
         self.prepare(query_string)

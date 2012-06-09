@@ -7,12 +7,11 @@ from decimal import Decimal
 import base64
 
 
-binary_data = base64.b64decode('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')
+binary_data = base64.b64decode('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')
 
 ba = bytearray(binary_data)
 mv = bytearray(binary_data)
 
-ba = mv = 'xx'
 
 def cur_file_dir():
     return os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -44,27 +43,27 @@ def main():
         pypyodbc.win_create_mdb(mdb_path.encode('mbcs'))
 
     conxs = [\
-        ('Access',
-        pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+mdb_path, unicode_results = True),
-        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
-                datetime,shijian time,riqi datetime, kong float, bin text)""",
-        ),
-        ('SQLServer',
-        pypyodbc.connect('DSN=MSSQL', unicode_results = True),
+#        ('Access',
+#        pypyodbc.connect(u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+mdb_path, unicode_results = True),
+#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
+#                datetime,shijian time,riqi datetime, kong float, bin text)""",
+#        ),
+#        ('SQLServer',
+#        pypyodbc.connect('DSN=MSSQL', unicode_results = True),
+#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+#                datetime,shijian time,riqi date, kong float, bin text)""",
+#        ),
+        ('MySQL',
+        pypyodbc.connect('DSN=MYSQL', unicode_results = True),
         u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-                datetime,shijian time,riqi date, kong float, bin text)""",
+                datetime,shijian time,riqi date, kong float, bin BLOB)""",
+        
         ),
-##        ('MySQL',
-##        pypyodbc.connect('DSN=MYSQL', unicode_results = True),
-##        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-##                datetime,shijian time,riqi date, kong float, bin BLOB)""",
-##        
-##        ),
-##        ('PostgreSQL',
-##        pypyodbc.connect('DSN=PostgreSQL35W', unicode_results = True),
-##        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-##                        timestamp,shijian time,riqi date, kong float, bin bytea)""",
-##        ),
+#        ('PostgreSQL',
+#        pypyodbc.connect('DSN=PostgreSQL35W', unicode_results = True),
+#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+#                        timestamp,shijian time,riqi date, kong float, bin bytea)""",
+#        ),
         ]
     
     for db_desc, conn, create_table_sql in conxs:
