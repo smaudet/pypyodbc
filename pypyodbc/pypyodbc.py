@@ -388,7 +388,6 @@ class Cursor:
         NumParams = ctypes.c_int()
         ret = ODBC_API.SQLNumParams(self._stmt_h, ADDR(NumParams))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        if DEBUG: print ('DEBUGGING: Parameter numbers:' + str(NumParams.value))
         
         if len(param_types) != NumParams.value:
             # In case number of parameters provided do not same as number required
@@ -417,32 +416,31 @@ class Cursor:
                 sql_type = SQL_INTEGER
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.c_long()
-                BufferLen = ctypes.c_long(buf_size)
-                LenOrIndBuf = ctypes.c_long()
+                
+                
             elif param_types[col_num] == float:
                 sql_c_type = SQL_C_DOUBLE
                 sql_type = SQL_DOUBLE
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.c_double()
-                BufferLen = ctypes.c_long(buf_size)
-                LenOrIndBuf = ctypes.c_long()
+                
+                
             elif param_types[col_num] == Decimal:
                 sql_c_type = SQL_C_DOUBLE
                 sql_type = SQL_DOUBLE
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.c_double()
-                BufferLen = ctypes.c_long(buf_size)
-                LenOrIndBuf = ctypes.c_long()
-                prec = 0
+                
+                
             elif param_types[col_num] == datetime.datetime:
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_TYPE_TIMESTAMP
                 buf_size = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_string_buffer(buf_size)
-                BufferLen = ctypes.c_long(buf_size)
-                LenOrIndBuf = ctypes.c_long()
                 prec = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][1]
+                
+                
             elif param_types[col_num] == datetime.date:
                 sql_c_type = SQL_C_CHAR
                 if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
@@ -451,8 +449,6 @@ class Cursor:
                     buf_size = self.connection.type_size_dic[SQL_TYPE_DATE][0]
                     self._inputsizers.append(buf_size)
                     ParameterBuffer = ctypes.create_string_buffer(buf_size)
-                    BufferLen = ctypes.c_long(buf_size)
-                    LenOrIndBuf = ctypes.c_long()
                     prec = self.connection.type_size_dic[SQL_TYPE_DATE][1]
                     
                 else:
@@ -461,9 +457,8 @@ class Cursor:
                     buf_size = 10
                     self._inputsizers.append(buf_size)
                     ParameterBuffer = ctypes.create_string_buffer(buf_size)
-                    BufferLen = ctypes.c_long(buf_size)
-                    LenOrIndBuf = ctypes.c_long()
-                    prec = 0
+                    
+
             elif param_types[col_num] == datetime.time:
                 sql_c_type = SQL_C_CHAR
                 if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
@@ -471,42 +466,43 @@ class Cursor:
                     buf_size = self.connection.type_size_dic[SQL_TYPE_TIME][0]
                     self._inputsizers.append(buf_size)
                     ParameterBuffer = ctypes.create_string_buffer(buf_size)
-                    BufferLen = ctypes.c_long(buf_size)
-                    LenOrIndBuf = ctypes.c_long()
                     prec = self.connection.type_size_dic[SQL_TYPE_TIME][1]
+                    
+                    
                 else:
                     sql_type = SQL_TYPE_TIMESTAMP #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
                     buf_size = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                     self._inputsizers.append(buf_size)
                     ParameterBuffer = ctypes.create_string_buffer(buf_size)
-                    BufferLen = ctypes.c_long(buf_size)
-                    LenOrIndBuf = ctypes.c_long()
                     prec = 3
+                    
+                    
             elif param_types[col_num] == unicode:
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
                 buf_size = 1024000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
-                BufferLen = ctypes.c_long(buf_size)
-                LenOrIndBuf = ctypes.c_long()
-                prec = 0
+                
+                
+
             elif param_types[col_num] == bytearray:
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
-                buf_size = 1024000 #1MB
+                buf_size = 102400 #1MB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_string_buffer(buf_size)
-                BufferLen = ctypes.c_long(buf_size)
-                LenOrIndBuf = ctypes.c_long()
+                
+                
             else:
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = 1024000 #1MB
+                buf_size = 102400 #1MB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_string_buffer(buf_size)
-                BufferLen = ctypes.c_long(buf_size)
-                LenOrIndBuf = ctypes.c_long()
+                
+            BufferLen = ctypes.c_long(buf_size)
+            LenOrIndBuf = ctypes.c_long()
                 
             ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
                      prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))

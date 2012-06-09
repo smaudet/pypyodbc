@@ -55,11 +55,11 @@ if __name__ == "__main__":
         u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi datetime, kong float, bin LONGBINARY)""",
         ),
-##        ('SQLServer',
-##        pypyodbc.connect('DSN=MSSQL', unicode_results = True),
-##        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-##                datetime,shijian time,riqi date, kong float, bin varbinary(MAX))""",
-##        ),
+#        ('SQLServer',
+#        pypyodbc.connect('DSN=MSSQL', unicode_results = True),
+#        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+#                datetime,shijian time,riqi date, kong float, bin varbinary(5000))""",
+#        ),
 ##        ('MySQL',
 ##        pypyodbc.connect('DSN=MYSQL', unicode_results = True),
 ##        u"""create table pypyodbc_test_data (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
@@ -87,6 +87,7 @@ if __name__ == "__main__":
 
         print ' *'.join(['' for i in range(80)])
 
+        print ' '*10,
         print db_desc 
         print ' *'.join(['' for i in range(80)])
         cur = conn.cursor()
@@ -126,7 +127,7 @@ if __name__ == "__main__":
 
 
 
-        for i in xrange(3,3103):
+        for i in xrange(3,403):
             cur.executemany(u"""insert into pypyodbc_test_data values 
             (?,?,12.32311, 1234.55, NULL,NULL,'2012-12-23',NULL,NULL)""", 
             [(i+500000, "【巴黎圣母院】".decode('utf-8')),
