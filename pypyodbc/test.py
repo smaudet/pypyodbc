@@ -28,7 +28,7 @@ def main():
         print 'Inserting rows now ...',
         start_time = time.time()
         cur = conn.cursor()
-        cur.execute(u"insert into pypyodbc_test_table values(1,'这是pypyodbc模块 :)',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (binary_logo,))
+        cur.execute(u"insert into pypyodbc_test_table values(1,'Hello, 这是pypyodbc模块 :D ',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (binary_logo,))
         longtext = u''.join([u'我在马路边，捡到一分钱。']*25)
         cur.execute("insert into pypyodbc_test_table values (?,?,?,?,NULL,NULL,NULL,NULL,?)", \
                                 (2, \
