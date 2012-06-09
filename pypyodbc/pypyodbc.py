@@ -480,7 +480,7 @@ class Cursor:
             elif param_types[col_num] == unicode:
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
-                buf_size = 1024000 #100kB
+                buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
                 
@@ -540,7 +540,7 @@ class Cursor:
             # With query prepared, now put parameters into buffers
             col_num = 0
             for param_buffer, param_buffer_len in self._ParamBufferList:
-                c_char_buf, c_buf_len = '', 10240000
+                c_char_buf, c_buf_len = '', 0
                 param_val = params[col_num]
                 if param_val == None:
                     c_buf_len = -1
@@ -589,8 +589,8 @@ class Cursor:
                     param_buffer.raw, param_buffer_len.value = c_char_buf, c_buf_len
                 else:
                     param_buffer.value, param_buffer_len.value = c_char_buf, c_buf_len
-                if type(param_val) in (unicode,):
-                    param_buffer_len.value = len(param_buffer)
+                    if type(param_val) in (unicode,):
+                        param_buffer_len.value = len(param_buffer)
 
                 col_num += 1
 
