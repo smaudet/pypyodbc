@@ -8,6 +8,7 @@ def main():
         print_header(database_name)
         
         print 'Connecting database server with pypyodbc...'
+        print conn_string
         conn = pypyodbc.connect(conn_string, unicode_results = True)
         
         print 'Has table "pypyodbc_test_table"?   ',
@@ -184,11 +185,11 @@ if __name__ == "__main__":
     mdb_path = cur_file_dir()+u'\\e.mdb'
     
     if hasattr(pypyodbc,'win_create_mdb'):
-        pypyodbc.win_create_mdb(mdb_path.encode('mbcs'))
+        pypyodbc.win_create_mdb('"'+mdb_path.encode('mbcs')+'"')
             
         database_strings = [\
             ('Access',
-            u'Driver={Microsoft Access Driver (*.mdb)};DBQ='+mdb_path,
+            u'''Driver={Microsoft Access Driver (*.mdb)};DBQ='''+mdb_path,
             u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
                     datetime,shijian time,riqi datetime, kong float, bin_logo LONGBINARY)""",
             ),
