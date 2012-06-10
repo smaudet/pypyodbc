@@ -228,8 +228,8 @@ for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_
 
 # Set the alias for the ctypes functions for beter code readbility or performance.
 ADDR = ctypes.byref
-SQLFetch =ODBC_API.SQLFetch
-
+SQLFetch = ODBC_API.SQLFetch
+SQLExecute = ODBC_API.SQLExecute
 
 def ctrl_err(ht, h, val_ret):
     """Classify type of ODBC error from (type of handle, handle, return value)
@@ -597,7 +597,7 @@ class Cursor:
 
                 col_num += 1
 
-            self.execu()
+            self.SQLExecute()
             self.NumOfRows()
             self._UpdateDesc()
             self._BindCols()
@@ -606,8 +606,8 @@ class Cursor:
             self.execdirect(query_string)
         return (self)
     
-    def execu(self):
-        ret = ODBC_API.SQLExecute(self._stmt_h)
+    def SQLExecute(self):
+        ret = SQLExecute(self._stmt_h)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
     

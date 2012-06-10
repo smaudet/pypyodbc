@@ -7,28 +7,36 @@ def main():
     for database_name, conn_string, create_table_sql in database_strings:
         print_header(database_name)
         
+        print 'Connecting database server with pypyodbc...'
         conn = pypyodbc.connect(conn_string, unicode_results = True)
+        
+        print 'Has table "pypyodbc_test_table"?   ',
         cur = conn.cursor()
         has_table_data = cur.tables(table='pypyodbc_test_table').fetchone()
-        print 'Has table "pypyodbc_test_table"? ' + str(has_table_data)
         cur.close()
         
-        cur = conn.cursor()
+        
         if has_table_data:
+            print ('pypyodbc_test_table exists. Dropping the existing pypyodbc_test_table now.')
+            cur = conn.cursor()
             cur.execute('Drop table pypyodbc_test_table')
+        else:
+            print ('pypyodbc_test_table not exists')
+            cur = conn.cursor()
             
         cur.execdirect(create_table_sql)
         conn.commit()
         
-        
+        print ('pypyodbc_test_table has been created. Now listing the columns.')
         for row in cur.columns(table='pypyodbc_test_table').fetchall():
             print row
         cur.close()
         
-        print 'Inserting rows now ...',
+        print 'Inserting rows now with execute()...  ',
         start_time = time.time()
         cur = conn.cursor()
-        cur.execute(u"insert into pypyodbc_test_table values(1,'Hello, 这是pypyodbc模块 :D ',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (binary_logo,))
+        cur.execute(u"insert into pypyodbc_test_table values(1,'Hello! 这是pypyodbc模块',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (binary_logo,))
+
         longtext = u''.join([u'我在马路边，捡到一分钱。']*25)
         cur.execute("insert into pypyodbc_test_table values (?,?,?,?,NULL,NULL,NULL,NULL,?)", \
                                 (2, \
@@ -39,28 +47,28 @@ def main():
 #                                datetime.datetime.now().time(),\
 #                                datetime.date.today(),\
                                 mv))
-
-
-
+        print 'Inserting rows now with executemany()...  ',
         for i in xrange(3,1003):
             cur.executemany(u"""insert into pypyodbc_test_table values 
             (?,?,12.32311, 1234.55, NULL,NULL,'2012-12-23',NULL,NULL)""", 
-            [(i+500000, "【巴黎圣母院】".decode('utf-8')),
+            [
+            (i+500000, "【巴黎圣母院】".decode('utf-8')),
             (i+100000, u"《普罗米修斯》"),
             (i+200000, "〖太极张三丰〗".decode('utf-8')),
             (i+300000, '〖!@#$$%"^&%&〗'.decode('utf-8')),
-            (i+400000, "〖querty-','〗".decode('utf-8'))]\
+            (i+400000, "〖querty-','〗".decode('utf-8')),
+            ]\
             )
         
         end_time = time.time()
         
         print 'Inserting completed, total time ',
-        print end_time-start_time
+        print end_time-start_time,
         conn.commit()
-        print 'commit comlete, commit time ',
-        print time.time() - end_time
+        print ' Commit comlete, commit time ',
+        print time.time() - end_time 
 
-
+        print 'Excute selecting from pypyodbc_test_table... '
         cur.execute(u"""select * from pypyodbc_test_table""")
         print cur.description
 
@@ -84,33 +92,13 @@ def main():
 
         
         cur.close()
-        cur = conn.cursor()
-        #cur.execute(u"delete from pypyodbc_test_table ".encode('mbcs'))
-        
-        cur.execute(u"""select * from pypyodbc_test_table""")
-
-        #Get results
-        
-        for row in cur.fetchmany(6):
-            for field in row:
-                if isinstance(field, unicode):
-                    print len(field),
-                    print field.encode('mbcs'),
-                elif isinstance(field, bytearray):
-                    pass
-                else:
-                    print field,
-                print '|',
-            print ''
-        
-        cur.close()
         #conn.rollback()
         cur = conn.cursor()
         start_time =  time.time()
-        print 'updating one column...',
+        print 'Updating one column...',
         cur.execute(u'update pypyodbc_test_table set 数量 = ? where 数量 > 0 '.encode('mbcs'),(time.time(),))
-        print 'updated: '+str(cur.rowcount),
-        print ' total time: '+ str(time.time()-start_time)
+        print 'Updated: '+str(cur.rowcount)+' rows',
+        print ' Total time: '+ str(time.time()-start_time)
         conn.commit()
         for field in cur.execute(u"""select * from pypyodbc_test_table""").fetchone():
             if isinstance(field, unicode):
