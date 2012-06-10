@@ -47,7 +47,7 @@ def main():
 #                                datetime.datetime.now().time(),\
 #                                datetime.date.today(),\
                                 mv))
-        row_num = 1000
+        row_num = 1500
         print 'Inserting 5*'+str(row_num)+' rows now with executemany()...  ',
         for i in xrange(3,row_num):
             cur.executemany(u"""insert into pypyodbc_test_table values 
@@ -166,7 +166,7 @@ def cur_file_dir():
 
 def print_header(database_name):
     print ' *'.join(['' for i in range(40)])
-    print ' '*26 + database_name 
+    print ' '*30 + database_name 
     print ' *'.join(['' for i in range(40)])
 
         
@@ -203,11 +203,11 @@ if __name__ == "__main__":
     #                datetime,shijian time,riqi date, kong float, bin_logo BLOB)""",
     #        
     #        ),
-    #        ('PostgreSQL',
-    #        'DSN=PostgreSQL35W',
-    #        u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-    #                        timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
-    #        ),
+#            ('PostgreSQL',
+#            'DSN=PostgreSQL35W',
+#            u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+#                            timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
+#            ),
             ]
         
         
