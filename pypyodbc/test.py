@@ -8,7 +8,6 @@ def main():
         print_header(database_name)
         
         print 'Connecting database server with pypyodbc...'
-        print conn_string
         conn = pypyodbc.connect(conn_string, unicode_results = True)
         
         print 'Has table "pypyodbc_test_table"?   ',
@@ -18,17 +17,17 @@ def main():
         
         
         if has_table_data:
-            print ('pypyodbc_test_table exists. Dropping the existing pypyodbc_test_table now.')
+            print 'pypyodbc_test_table exists. Dropping the existing pypyodbc_test_table now.',
             cur = conn.cursor()
-            cur.execute('Drop table pypyodbc_test_table')
+            cur.execute ('Drop table pypyodbc_test_table')
         else:
-            print ('pypyodbc_test_table not exists')
+            print 'pypyodbc_test_table does not exist',
             cur = conn.cursor()
             
         cur.execdirect(create_table_sql)
         conn.commit()
         
-        print ('pypyodbc_test_table has been created. Now listing the columns.')
+        print ('pypyodbc_test_table has been created. Now listing the columns:')
         for row in cur.columns(table='pypyodbc_test_table').fetchall():
             print row
         cur.close()
@@ -48,8 +47,9 @@ def main():
 #                                datetime.datetime.now().time(),\
 #                                datetime.date.today(),\
                                 mv))
-        print 'Inserting rows now with executemany()...  ',
-        for i in xrange(3,1003):
+        row_num = 1000
+        print 'Inserting 5*'+str(row_num)+' rows now with executemany()...  ',
+        for i in xrange(3,row_num):
             cur.executemany(u"""insert into pypyodbc_test_table values 
             (?,?,12.32311, 1234.55, NULL,NULL,'2012-12-23',NULL,NULL)""", 
             [
@@ -103,13 +103,12 @@ def main():
         conn.commit()
         for field in cur.execute(u"""select * from pypyodbc_test_table""").fetchone():
             if isinstance(field, unicode):
-                print field.encode('mbcs'),
+                print field.encode('mbcs')+'\t',
             elif isinstance(field, bytearray):
                     pass
             else:
-                print field,
+                print str(field)+'\t',
         print ('')
-        print (cur.description)
         
         start_time = time.time()
         i = 1
@@ -122,7 +121,7 @@ def main():
                 print i,
             
             row = cur.fetchone()
-        print '\n Total records retrive time:',
+        print '    Total records retrive time:',
         print time.time() - start_time
         #print conn.FetchAll()
         #Close before exit
