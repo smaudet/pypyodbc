@@ -579,10 +579,10 @@ class Cursor:
                 elif type(param_val) == str:
                     c_char_buf = param_val
                     c_buf_len = len(param_val)
+                    
                 elif type(param_val) == unicode:
                     c_char_buf = param_val
-                    c_buf_len = len(ctypes.create_unicode_buffer(param_val))
-                    if DEBUG: print c_buf_len
+                    
                 elif type(param_val) == bytearray:
                     c_char_buf = str(param_val)
                     c_buf_len = len(c_char_buf)
@@ -595,9 +595,7 @@ class Cursor:
                 else:
                     param_buffer.value = c_char_buf
                     
-                if type(param_val) in (unicode,):
-                    param_buffer_len.value = c_buf_len*2 #param_buffer_len.value = None #len(param_buffer)
-                else:
+                if type(param_val) not in (unicode,):
                     param_buffer_len.value = c_buf_len
 
                 col_num += 1
