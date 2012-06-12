@@ -504,8 +504,13 @@ class Cursor:
             BufferLen = ctypes.c_long(buf_size)
             LenOrIndBuf = ctypes.c_long()
                 
-            ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
-                     prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
+            if param_types[col_num] != unicode:
+                ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
+                         prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
+            else:
+                ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
+                                         prec, ADDR(ParameterBuffer), ADDR(BufferLen),None)
+                
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             # Append the value buffer and the lenth buffer to the array
             ParamBufferList.append((ParameterBuffer,LenOrIndBuf))
