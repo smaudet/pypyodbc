@@ -10,35 +10,35 @@ def main():
         print 'Connecting database server with pypyodbc...'
         conn = pypyodbc.connect(conn_string, unicode_results = True)
         
-        print 'Has table "pypyodbc_test_table"?   ',
+        print 'Has table "pypyodbc_test_tabl"?   ',
         cur = conn.cursor()
-        has_table_data = cur.tables(table='pypyodbc_test_table').fetchone()
+        has_table_data = cur.tables(table='pypyodbc_test_tabl').fetchone()
         cur.close()
         
         
         if has_table_data:
-            print 'pypyodbc_test_table exists. Dropping the existing pypyodbc_test_table now.',
+            print 'pypyodbc_test_tabl exists. Dropping the existing pypyodbc_test_tabl now.',
             cur = conn.cursor()
-            cur.execute ('Drop table pypyodbc_test_table')
+            cur.execute ('Drop table pypyodbc_test_tabl')
         else:
-            print 'pypyodbc_test_table does not exist',
+            print 'pypyodbc_test_tabl does not exist',
             cur = conn.cursor()
             
         cur.execdirect(create_table_sql)
         conn.commit()
         
-        print ('pypyodbc_test_table has been created. Now listing the columns:')
-        for row in cur.columns(table='pypyodbc_test_table').fetchall():
+        print ('pypyodbc_test_tabl has been created. Now listing the columns:')
+        for row in cur.columns(table='pypyodbc_test_tabl').fetchall():
             print row
         cur.close()
         
         print 'Inserting rows now with execute()...  ',
         start_time = time.time()
         cur = conn.cursor()
-        cur.execute(u"insert into pypyodbc_test_table values(1,'Hello! 这是pypyodbc模块',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (binary_logo,))
+        cur.execute(u"insert into pypyodbc_test_tabl values(1,'Hello! 这是pypyodbc模块',12.3,1234.55,'2012-11-11','17:31:32','2012-11-11',NULL, ?)", (binary_logo,))
 
         longtext = u''.join([u'我在马路边，捡到一分钱。']*25)
-        cur.execute("insert into pypyodbc_test_table values (?,?,?,?,NULL,NULL,NULL,NULL,?)", \
+        cur.execute("insert into pypyodbc_test_tabl values (?,?,?,?,NULL,NULL,NULL,NULL,?)", \
                                 (2, \
                                 longtext,\
                                 Decimal('1233.4513'), \
@@ -50,7 +50,7 @@ def main():
         row_num = 1500
         print 'Inserting 5*'+str(row_num)+' rows now with executemany()...  ',
         for i in xrange(3,row_num):
-            cur.executemany(u"""insert into pypyodbc_test_table values 
+            cur.executemany(u"""insert into pypyodbc_test_tabl values 
             (?,?,12.32311, 1234.55, NULL,NULL,'2012-12-23',NULL,NULL)""", 
             [
             (i+500000, "【巴黎圣母院】".decode('utf-8')),
@@ -69,8 +69,8 @@ def main():
         print ' Commit comlete, commit time ',
         print time.time() - end_time 
 
-        print 'Excute selecting from pypyodbc_test_table... '
-        cur.execute(u"""select * from pypyodbc_test_table""")
+        print 'Excute selecting from pypyodbc_test_tabl... '
+        cur.execute(u"""select * from pypyodbc_test_tabl""")
         print cur.description
 
         
@@ -97,11 +97,11 @@ def main():
         cur = conn.cursor()
         start_time =  time.time()
         print 'Updating one column...',
-        cur.execute(u'update pypyodbc_test_table set 数量 = ? where 数量 > 0 '.encode('mbcs'),(time.time(),))
+        cur.execute(u'update pypyodbc_test_tabl set 数量 = ? where 数量 > 0 '.encode('mbcs'),(time.time(),))
         print 'Updated: '+str(cur.rowcount)+' rows',
         print ' Total time: '+ str(time.time()-start_time)
         conn.commit()
-        for field in cur.execute(u"""select * from pypyodbc_test_table""").fetchone():
+        for field in cur.execute(u"""select * from pypyodbc_test_tabl""").fetchone():
             if isinstance(field, unicode):
                 print field.encode('mbcs')+'\t',
             elif isinstance(field, bytearray):
@@ -189,25 +189,25 @@ if __name__ == "__main__":
         database_strings = [\
             ('Access',
             u'''Driver={Microsoft Access Driver (*.mdb)};DBQ='''+mdb_path,
-            u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
+            u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
                     datetime,shijian time,riqi datetime, kong float, bin_logo LONGBINARY)""",
             ),
             ('SQLServer',
             'DSN=MSSQL',
-            u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+            u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
                     datetime,shijian time,riqi date, kong float, bin_logo varbinary(5000))""",
             ),
             ('MySQL',
             'DSN=MYSQL',
-            u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+            u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
                     datetime,shijian time,riqi date, kong float, bin_logo BLOB)""",
             
             ),
-#            ('PostgreSQL',
-#            'DSN=PostgreSQL35W',
-#            u"""create table pypyodbc_test_table (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-#                            timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
-#            ),
+            ('PostgreSQL',
+            'DSN=PostgreSQL35W',
+            u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+                            timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
+            ),
             ]
         
         

@@ -479,7 +479,7 @@ class Cursor:
                     
             elif param_types[col_num] == unicode:
                 sql_c_type = SQL_C_WCHAR
-                sql_type = SQL_WLONGVARCHAR #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
+                sql_type = SQL_WLONGVARCHAR 
                 buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
@@ -506,10 +506,10 @@ class Cursor:
                 
             if param_types[col_num] != unicode:
                 ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
-                         prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
+                        prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
             else:
                 ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
-                                         prec, ADDR(ParameterBuffer), ADDR(BufferLen),None)
+                        prec, ADDR(ParameterBuffer), ADDR(BufferLen),None)
                 
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             # Append the value buffer and the lenth buffer to the array
