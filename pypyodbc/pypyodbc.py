@@ -504,12 +504,12 @@ class Cursor:
             BufferLen = ctypes.c_long(buf_size)
             LenOrIndBuf = ctypes.c_long()
                 
-            if param_types[col_num] != unicode:
-                ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
-                        prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
-            else:
+            if param_types[col_num] in (unicode,str):
                 ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
                         prec, ADDR(ParameterBuffer), ADDR(BufferLen),None)
+            else:
+                ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
+                        prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
                 
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             # Append the value buffer and the lenth buffer to the array
@@ -576,9 +576,9 @@ class Cursor:
                     if DEBUG: print c_buf_len, c_char_buf
                 elif type(param_val) == Decimal:
                     c_char_buf = float(param_val)
+                    
                 elif type(param_val) == str:
                     c_char_buf = param_val
-                    c_buf_len = len(param_val)
                     
                 elif type(param_val) == unicode:
                     c_char_buf = param_val
@@ -595,7 +595,8 @@ class Cursor:
                 else:
                     param_buffer.value = c_char_buf
                     
-                if type(param_val) not in (unicode,):
+                if type(param_val) not in (unicode,str):
+                    #ODBC driver will find NUL in unicode and string to determine their length
                     param_buffer_len.value = c_buf_len
 
                 col_num += 1
