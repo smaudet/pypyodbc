@@ -523,7 +523,7 @@ class Cursor:
             
             
     
-    def execute(self, query_string, params = None, stmt_prepared = False):
+    def execute(self, query_string, params = None, execute_many_mode = False):
         """ Execute the query string, with optional parameters.
         If parameters are provided, the query would first be prepared, then executed with parameters;
         If parameters are not provided, only th query sting, it would be executed directly 
@@ -533,7 +533,7 @@ class Cursor:
             if not type(params) in (tuple, list):
                 raise TypeError("Params must be in a list, tuple, or Row")
             
-            if not stmt_prepared:
+            if not execute_many_mode:
                 if query_string != self.statement:
                     # if the query is not same as last query, then it is not prepared
                     self.prepare(query_string)
@@ -586,9 +586,10 @@ class Cursor:
                 elif type(param_val) == bytearray:
                     c_char_buf = str(param_val)
                     c_buf_len = len(c_char_buf)
+                    
                 else:
                     c_char_buf = param_val
-                
+            
 
                 if type(param_val) in (bytearray,):
                     param_buffer.raw = c_char_buf
@@ -602,9 +603,10 @@ class Cursor:
                 col_num += 1
 
             self.SQLExecute()
-            self.NumOfRows()
-            self._UpdateDesc()
-            self._BindCols()
+            if not execute_many_mode:
+                self.NumOfRows()
+                self._UpdateDesc()
+                self._BindCols()
             
         else:
             self.execdirect(query_string)
@@ -618,8 +620,11 @@ class Cursor:
     def executemany(self, query_string, params_list = [None]):
         self.prepare(query_string)
         for params in params_list:
-            self.execute(query_string, params, stmt_prepared = True)
-            
+            self.execute(query_string, params, execute_many_mode = True)
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        
             
             
     def prepare(self, query_string):
