@@ -229,7 +229,11 @@ for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_
 # Set the alias for the ctypes functions for beter code readbility or performance.
 ADDR = ctypes.byref
 SQLFetch = ODBC_API.SQLFetch
+SQLFetch.argtypes = [ctypes.c_int]
 SQLExecute = ODBC_API.SQLExecute
+SQLExecute.argtypes = [ctypes.c_int]
+SQLBindParameter = ODBC_API.SQLBindParameter
+
 
 def ctrl_err(ht, h, val_ret):
     """Classify type of ODBC error from (type of handle, handle, return value)
@@ -505,10 +509,10 @@ class Cursor:
             LenOrIndBuf = ctypes.c_long()
                 
             if param_types[col_num] in (unicode,str):
-                ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
+                ret = SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
                         prec, ADDR(ParameterBuffer), ADDR(BufferLen),None)
             else:
-                ret = ODBC_API.SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
+                ret = SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
                         prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
                 
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
@@ -614,7 +618,8 @@ class Cursor:
     
     def SQLExecute(self):
         ret = SQLExecute(self._stmt_h)
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        if ret != SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
     
     def executemany(self, query_string, params_list = [None]):
