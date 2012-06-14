@@ -514,8 +514,8 @@ class Cursor:
             else:
                 ret = SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
                         prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
-                
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            if ret != SQL_SUCCESS:    
+                validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             # Append the value buffer and the lenth buffer to the array
             ParamBufferList.append((ParameterBuffer,LenOrIndBuf))
                 
