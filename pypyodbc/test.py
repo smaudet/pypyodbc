@@ -117,6 +117,7 @@ def main():
         start_time = time.time()
         i = 1
         row = cur.fetchone()
+        cur.skip(1500)
         while row != None:
             for field in row:
                 x = field

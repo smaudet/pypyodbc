@@ -58,6 +58,9 @@ SQL_IS_UINTEGER = -5
 SQL_ATTR_LOGIN_TIMEOUT = 103
 SQL_COMMIT, SQL_ROLLBACK = 0, 1
 
+SQL_INDEX_UNIQUE,SQL_INDEX_ALL = 0,1
+SQL_QUICK,SQL_ENSURE = 0,1
+SQL_FETCH_NEXT = 1
 SQL_COLUMN_DISPLAY_SIZE = 6
 SQL_INVALID_HANDLE = -2
 SQL_NO_DATA_FOUND = 100
@@ -219,7 +222,7 @@ class Error(Exception):
 funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCols","SQLDescribeCol","SQLColAttribute",
         "SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount",
         "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLDriverConnectW",
-        "SQLConnect","SQLTables",
+        "SQLConnect","SQLTables","SQLStatistics","SQLFetchScroll",
         "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
         "SQLDescribeParam","SQLGetTypeInfo","SQLPrimaryKeys","SQLForeignKeys","SQLProcedures"]
 for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
@@ -732,6 +735,13 @@ class Cursor:
     def fetchall(self):
         return self.__fetch()
 
+
+    def skip(self, count = 0):
+        for i in xrange(count):
+            ret = ODBC_API.SQLFetchScroll(self._stmt_h, SQL_FETCH_NEXT, 0)
+            if ret != SQL_SUCCESS:
+                validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        return None
     
     def __fetch(self, num = 0):
         rows = []
@@ -812,6 +822,34 @@ class Cursor:
         self._UpdateDesc()
         self._BindCols()
         return (self)
+
+    def statistics(self, table, catalog=None, schema=None, unique=False, quick=True):
+        l_table = l_catalog = l_schema = 0
+
+        if catalog != None: l_catalog = len(catalog)
+        if schema != None: l_schema = len(schema)
+        if table != None: l_table = len(table)
+        if unique:
+            Unique = SQL_INDEX_UNIQUE
+        else:
+            Unique = SQL_INDEX_ALL
+        if quick:
+            Reserved = SQL_QUICK
+        else:
+            Reserved = SQL_ENSURE
+
+        ret = ODBC_API.SQLStatistics(self._stmt_h,
+                                catalog, l_catalog,
+                                schema, l_schema, 
+                                table, l_table,
+                                Unique, Reserved)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        return (self)
+
 
     
     def tables(self, table=None, catalog=None, schema=None, tableType=None):
