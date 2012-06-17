@@ -226,3 +226,6 @@ if __name__ == "__main__":
         cProfile.run('main()')
     else:
         main()
+    if hasattr(pypyodbc,'win_compact_mdb'):
+        mdb_file_path = '"'+mdb_path.encode('mbcs')+'"'
+        pypyodbc.win_compact_mdb(mdb_file_path,mdb_file_path.replace('e.mdb','e_compact.mdb'))
