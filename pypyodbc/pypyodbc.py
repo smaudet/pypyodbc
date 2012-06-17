@@ -28,6 +28,11 @@ DEBUG = 0
 if DEBUG: print 'DEBUGGING'
 
 
+apilevel = '2.0'
+paramstyle = 'qmark'
+threadsafety = 1
+
+
 # Set the library location on linux 
 library = "/usr/lib/libodbc.so"
 
@@ -175,19 +180,26 @@ class OdbcGenericError(Exception):
         self.value = value
     def __str__(self):
         return repr(self.value)
-class ProgrammingError(Exception):
+
+class DatabaseError(Exception):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
+
+    
+class ProgrammingError(DatabaseError):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
 
 
-class DataError(Exception):
+class DataError(DatabaseError):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
 
 
-class IntegrityError(Exception):
+class IntegrityError(DatabaseError):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
@@ -198,13 +210,8 @@ class NotSupportedError(Exception):
         self.args = (error_code, error_desc)
 
 
-class DatabaseError(Exception):
-    def __init__(self, error_code, error_desc):
-        self.value = (error_code, error_desc)
-        self.args = (error_code, error_desc)
 
-
-class OperationalError(Exception):
+class OperationalError(DatabaseError):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
@@ -394,7 +401,8 @@ class Cursor:
         # Get the number of query parameters judged by database.
         NumParams = ctypes.c_int()
         ret = ODBC_API.SQLNumParams(self._stmt_h, ADDR(NumParams))
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        if ret != SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         if len(param_types) != NumParams.value:
             # In case number of parameters provided do not same as number required
@@ -641,7 +649,8 @@ class Cursor:
             ret = ODBC_API.SQLPrepareW(self._stmt_h, query_string, len(query_string))
         else:
             ret = ODBC_API.SQLPrepare(self._stmt_h, query_string, len(query_string))
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        if ret != SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.statement = query_string
         
     

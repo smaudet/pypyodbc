@@ -197,22 +197,22 @@ if __name__ == "__main__":
         u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi datetime, kong float, bin_logo LONGBINARY)""",
         ),
-        ('SQLServer',
-        'DSN=MSSQL',
-        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-                datetime,shijian varchar(20),riqi varchar(20), kong float, bin_logo varbinary(5000))""",
-        ),
-        ('MySQL',
-        'DSN=MYSQL',
-        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-                datetime,shijian time,riqi date, kong float, bin_logo BLOB)""",
-        
-        ),
-        ('PostgreSQL',
-        'DSN=PostgreSQL35W',
-        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-                        timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
-        ),
+#        ('SQLServer',
+#        'DSN=MSSQL',
+#        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+#                datetime,shijian varchar(20),riqi varchar(20), kong float, bin_logo varbinary(5000))""",
+#        ),
+#        ('MySQL',
+#        'DSN=MYSQL',
+#        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+#                datetime,shijian time,riqi date, kong float, bin_logo BLOB)""",
+#        
+#        ),
+#        ('PostgreSQL',
+#        'DSN=PostgreSQL35W',
+#        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+#                        timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
+#        ),
         ]
         
         
