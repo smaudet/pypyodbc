@@ -7,7 +7,7 @@ setup(
     description='A Pure Python ctypes ODBC module',
     author='jiangwen365',
     author_email='jiangwen365@gmail.com',
-    url='http://http://code.google.com/p/pypyodbc/',
+    url='http://code.google.com/p/pypyodbc/',
     py_modules=['pypyodbc'],
       long_description="""\
       A Pure Python ctypes ODBC module compatible with PyPy and almost totally same usage as pyodbc
