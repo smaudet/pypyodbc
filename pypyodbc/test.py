@@ -5,7 +5,16 @@ from decimal import Decimal
 
 def main():
     for database_name, conn_string, create_table_sql in database_strings:
-        print_header(database_name)
+        source_to_test = [
+        'Access',
+#        'SQLServer',
+#        'MySQL',
+#        'PostgreSQL'
+        ]
+        if database_name in source_to_test:
+            print_header(database_name)
+        else:
+            database_name+' skipped.'
         
         print 'Connecting database server with pypyodbc...'
         conn = pypyodbc.connect(conn_string, unicode_results = True)
@@ -74,7 +83,7 @@ def main():
         print time.time() - end_time 
 
         print 'Excute selecting from pypyodbc_test_tabl... '
-        cur.execute(u"""select * from pypyodbc_test_tabl""")
+        cur.execute(u"""select * from pypyodbc_test_tabl;update pypyodbc_test_tabl set kong = 5 where ID = 2;select ID, kong, riqi, product_name from pypyodbc_test_tabl where ID = 2 """)
         print cur.description
 
         
@@ -95,16 +104,24 @@ def main():
             print ('')
         
 
+        cur.nextset()
+        print 'After calling nextset, get the information of updated: '+str(cur.rowcount)+' rows'
+        cur.nextset()
         
-        cur.close()
-        #conn.rollback()
-        cur = conn.cursor()
-        start_time =  time.time()
-        print 'Updating one column...',
-        cur.execute(u'update pypyodbc_test_tabl set 数量 = ? where 数量 > 0 '.encode('mbcs'),(time.time(),))
-        print 'Updated: '+str(cur.rowcount)+' rows',
+        for field in cur.fetchone():
+            if isinstance(field, unicode):
+                print field.encode('mbcs')+'\t',
+            elif isinstance(field, bytearray):
+                    pass
+            else:
+                print str(field)+'\t',
+        print ('')
+
+
         print ' Total time: '+ str(time.time()-start_time)
+        cur.close()
         conn.commit()
+        cur = conn.cursor()
         for field in cur.execute(u"""select * from pypyodbc_test_tabl""").fetchone():
             if isinstance(field, unicode):
                 print field.encode('mbcs')+'\t',
@@ -194,25 +211,25 @@ if __name__ == "__main__":
     database_strings = [\
         ('Access',
         u'''Driver={Microsoft Access Driver (*.mdb)};DBQ='''+mdb_path,
-        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
+        u"""create table pypyodbc_test_tabl (ID integer PRIMARY KEY,product_name text,数量 numeric,价格 float,日期 
                 datetime,shijian time,riqi datetime, kong float, bin_logo LONGBINARY)""",
         ),
-#        ('SQLServer',
-#        'DSN=MSSQL',
-#        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-#                datetime,shijian varchar(20),riqi varchar(20), kong float, bin_logo varbinary(5000))""",
-#        ),
-#        ('MySQL',
-#        'DSN=MYSQL',
-#        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-#                datetime,shijian time,riqi date, kong float, bin_logo BLOB)""",
-#        
-#        ),
-#        ('PostgreSQL',
-#        'DSN=PostgreSQL35W',
-#        u"""create table pypyodbc_test_tabl (编号 integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-#                        timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
-#        ),
+        ('SQLServer',
+        'DSN=MSSQL',
+        u"""create table pypyodbc_test_tabl (ID integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+                datetime,shijian varchar(20),riqi varchar(20), kong float, bin_logo varbinary(5000))""",
+        ),
+        ('MySQL',
+        'DSN=MYSQL',
+        u"""create table pypyodbc_test_tabl (ID integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+                datetime,shijian time,riqi date, kong float, bin_logo BLOB)""",
+        
+        ),
+        ('PostgreSQL',
+        'DSN=PostgreSQL35W',
+        u"""create table pypyodbc_test_tabl (ID integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
+                        timestamp,shijian time,riqi date, kong float, bin_logo bytea)""",
+        ),
         ]
         
         
@@ -228,4 +245,4 @@ if __name__ == "__main__":
         main()
     if hasattr(pypyodbc,'win_compact_mdb'):
         mdb_file_path = '"'+mdb_path.encode('mbcs')+'"'
-        pypyodbc.win_compact_mdb(mdb_file_path,mdb_file_path.replace('e.mdb','e_compact.mdb'))
+        pypyodbc.win_compact_mdb(mdb_file_path,mdb_file_path.replace('.mdb','_compact.mdb'))

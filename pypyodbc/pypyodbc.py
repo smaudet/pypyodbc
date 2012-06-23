@@ -31,6 +31,8 @@ if DEBUG: print 'DEBUGGING'
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
+version = '0.50 alpha'
+
 
 
 # Set the library location on linux 
@@ -57,6 +59,7 @@ SQL_DRIVER_NOPROMPT = 0
 SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
 SQL_NULL_HANDLE, SQL_HANDLE_ENV, SQL_HANDLE_DBC, SQL_HANDLE_STMT = 0, 1, 2, 3
 SQL_SUCCESS, SQL_SUCCESS_WITH_INFO = 0, 1
+SQL_NO_DATA = 100
 SQL_ATTR_AUTOCOMMIT = 102
 SQL_AUTOCOMMIT_OFF, SQL_AUTOCOMMIT_ON = 0, 1
 SQL_IS_UINTEGER = -5
@@ -229,7 +232,7 @@ class Error(Exception):
 funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCols","SQLDescribeCol","SQLColAttribute",
         "SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount",
         "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLDriverConnectW",
-        "SQLConnect","SQLTables","SQLStatistics","SQLFetchScroll",
+        "SQLConnect","SQLTables","SQLStatistics","SQLFetchScroll","SQLMoreResults",
         "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
         "SQLDescribeParam","SQLGetTypeInfo","SQLPrimaryKeys","SQLForeignKeys","SQLProcedures"]
 for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
@@ -325,7 +328,6 @@ ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 
 validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
 
-version = '0.50 alpha'
 
 class ROW(list):
     pass
@@ -342,7 +344,7 @@ class Cursor:
         self._ParamBufferList = []
         self._ColBufferList = []
         self._buf_cvt_func = []
-        self.rowcount = None
+        self.rowcount = -1
         self.description = None
         self.autocommit = None
         self._ColTypeCodeList = []
@@ -532,10 +534,7 @@ class Cursor:
                 
         self._last_param_types = param_types
         self._ParamBufferList = ParamBufferList
-    
-            
-            
-            
+        
             
     
     def execute(self, query_string, params = None, execute_many_mode = False):
@@ -640,6 +639,35 @@ class Cursor:
         self.NumOfRows()
         self._UpdateDesc()
         self._BindCols()
+        
+    def nextset(self):
+        ret = ODBC_API.SQLMoreResults(self._stmt_h)
+        if ret not in (SQL_SUCCESS, SQL_NO_DATA):
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            
+        if ret == SQL_NO_DATA:
+            self.free_results('FREE_STATEMENT')
+            return False
+        else:
+            self.NumOfRows()
+            self._UpdateDesc()
+            self._BindCols()
+        return True
+    
+    def free_results(self, free_statement):
+        self.description = None
+        
+        if free_statement == 'FREE_STATEMENT':
+            ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_CLOSE)
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        else:
+            ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_UNBIND)
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            
+            ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_RESET_PARAMS)
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+        self.rowcount = -1
         
             
             
@@ -786,10 +814,9 @@ class Cursor:
         
     def close(self):
         """ Call SQLCloseCursor API to free the statement handle"""
-        
-        ret = ODBC_API.SQLCloseCursor(self._stmt_h)
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        
+#        ret = ODBC_API.SQLCloseCursor(self._stmt_h)
+#        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+#        
         ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_CLOSE)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
 
@@ -803,7 +830,7 @@ class Cursor:
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         self.closed = True
-        return
+
     
     
     def __del__(self):  
