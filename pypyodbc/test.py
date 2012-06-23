@@ -7,9 +7,9 @@ def main():
     for database_name, conn_string, create_table_sql in database_strings:
         source_to_test = [
         'Access',
-#        'SQLServer',
-#        'MySQL',
-#        'PostgreSQL'
+        'SQLServer',
+        'MySQL',
+        'PostgreSQL'
         ]
         if database_name in source_to_test:
             print_header(database_name)
@@ -83,42 +83,76 @@ def main():
         print time.time() - end_time 
 
         print 'Excute selecting from pypyodbc_test_tabl... '
-        cur.execute(u"""select * from pypyodbc_test_tabl;update pypyodbc_test_tabl set kong = 5 where ID = 2;select ID, kong, riqi, product_name from pypyodbc_test_tabl where ID = 2 """)
-        print cur.description
+        if database_name in ['Access','MySQL']:
+            # Access and MySQL do not support batch SQL, so can not test the nextset() method.
+            cur.execute(u"""select * from pypyodbc_test_tabl""")
+            print cur.description
+            
+            
+            #Get results
+            field = cur.fetchone().bin_logo
+            file(cur_file_dir()+'\\logo_'+database_name+'.gif','wb').write(field)
+            field = cur.fetchone().bin_logo
+            file(cur_file_dir()+'\\logo2_'+database_name+'.gif','wb').write(field)
+            
+            
+            
+            for row in cur.fetchmany(6):
+                for field in row:
+                    print type(field),
+                    if isinstance(field, unicode): print field.encode('mbcs'),
+                    elif isinstance(field, bytearray): pass
+                    else: print field,
+                print ('')
+            
+            
+            
+            cur.close()
+            #conn.rollback()
+            cur = conn.cursor()
+            start_time =  time.time()
+            print 'Updating one column...',
+            cur.execute(u'update pypyodbc_test_tabl set 数量 = ? where 数量 > 0 '.encode('mbcs'),(time.time(),))
+            print 'Updated: '+str(cur.rowcount)+' rows',
+            print ' Total time: '+ str(time.time()-start_time)
+            
+        else:
+            cur.execute(u"""select * from pypyodbc_test_tabl;update pypyodbc_test_tabl set kong = 5 where ID = 2;select ID, kong, riqi, product_name from pypyodbc_test_tabl where ID = 2 """)
+            print cur.description
 
-        
-        #Get results
-        field = cur.fetchone().bin_logo
-        file(cur_file_dir()+'\\logo_'+database_name+'.gif','wb').write(field)
-        field = cur.fetchone().bin_logo
-        file(cur_file_dir()+'\\logo2_'+database_name+'.gif','wb').write(field)
+            
+            #Get results
+            field = cur.fetchone().bin_logo
+            file(cur_file_dir()+'\\logo_'+database_name+'.gif','wb').write(field)
+            field = cur.fetchone().bin_logo
+            file(cur_file_dir()+'\\logo2_'+database_name+'.gif','wb').write(field)
 
 
-        
-        for row in cur.fetchmany(6):
-            for field in row:
-                print type(field),
-                if isinstance(field, unicode): print field.encode('mbcs'),
-                elif isinstance(field, bytearray): pass
-                else: print field,
+            
+            for row in cur.fetchmany(6):
+                for field in row:
+                    print type(field),
+                    if isinstance(field, unicode): print field.encode('mbcs'),
+                    elif isinstance(field, bytearray): pass
+                    else: print field,
+                print ('')
+            
+
+            cur.nextset()
+            print 'After calling nextset, get the information of updated: '+str(cur.rowcount)+' rows'
+            cur.nextset()
+            
+            for field in cur.fetchone():
+                if isinstance(field, unicode):
+                    print field.encode('mbcs')+'\t',
+                elif isinstance(field, bytearray):
+                        pass
+                else:
+                    print str(field)+'\t',
             print ('')
-        
-
-        cur.nextset()
-        print 'After calling nextset, get the information of updated: '+str(cur.rowcount)+' rows'
-        cur.nextset()
-        
-        for field in cur.fetchone():
-            if isinstance(field, unicode):
-                print field.encode('mbcs')+'\t',
-            elif isinstance(field, bytearray):
-                    pass
-            else:
-                print str(field)+'\t',
-        print ('')
 
 
-        print ' Total time: '+ str(time.time()-start_time)
+            print ' Total time: '+ str(time.time()-start_time)
         cur.close()
         conn.commit()
         cur = conn.cursor()
