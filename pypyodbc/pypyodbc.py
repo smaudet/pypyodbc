@@ -31,7 +31,7 @@ if DEBUG: print 'DEBUGGING'
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.50 alpha'
+version = '0.6'
 
 
 
@@ -60,7 +60,11 @@ SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
 SQL_NULL_HANDLE, SQL_HANDLE_ENV, SQL_HANDLE_DBC, SQL_HANDLE_STMT = 0, 1, 2, 3
 SQL_SUCCESS, SQL_SUCCESS_WITH_INFO = 0, 1
 SQL_NO_DATA = 100
-SQL_ATTR_AUTOCOMMIT = 102
+SQL_ATTR_ACCESS_MODE = SQL_ACCESS_MODE = 101
+SQL_ATTR_AUTOCOMMIT = SQL_AUTOCOMMIT = 102
+
+SQL_MODE_DEFAULT = SQL_MODE_READ_WRITE = 0
+SQL_MODE_READ_ONLY = 1
 SQL_AUTOCOMMIT_OFF, SQL_AUTOCOMMIT_ON = 0, 1
 SQL_IS_UINTEGER = -5
 SQL_ATTR_LOGIN_TIMEOUT = 103
@@ -987,19 +991,26 @@ class Cursor:
         self._UpdateDesc()
         self._BindCols()
         return (self)
+
+    def commit(self):
+        self.connection.commit()
+
+    def rollback(self):
+        self.connection.rollback()
         
         
         
 
 class Connection:
     """This class implement a odbc connection. It use ctypes for work."""
-    def __init__(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
+    def __init__(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False, readonly = False):
         """Init variables and connect to the engine"""
         self.connected = 0
         self.type_size_dic = {}
         self.unicode_results = False
         self.dbc_h = ctypes.c_int()
         self.autocommit = False
+        self.readonly = False
         
         # Allocate an DBC handle self.dbc_h under the environment shared_env_h
         # This DBC handle is actually the basis of a "connection"
@@ -1009,11 +1020,11 @@ class Connection:
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_DBC, shared_env_h, ADDR(self.dbc_h))
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
-        self.connect(connectString, autocommit, ansi, timeout, unicode_results)
+        self.connect(connectString, autocommit, ansi, timeout, unicode_results, readonly)
             
             
             
-    def connect(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
+    def connect(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False, readonly = False):
         """Connect to odbc, using connect strings
         and set the connection's attributes like autocommit and timeout
         by calling SQLSetConnectAttr
@@ -1044,10 +1055,16 @@ class Connection:
         
         # Set the connection's attribute of "autocommit" 
         #
-        
         self.autocommit = autocommit
         
         ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_AUTOCOMMIT, self.autocommit and SQL_AUTOCOMMIT_ON or SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER)
+        validate(ret, SQL_HANDLE_DBC, self.dbc_h)
+       
+        # Set the connection's attribute of "readonly" 
+        #
+        self.readonly = readonly
+        
+        ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_ACCESS_MODE, self.readonly and SQL_MODE_READ_ONLY or SQL_MODE_READ_WRITE, SQL_IS_UINTEGER)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
         self.unicode_results = unicode_results
@@ -1139,8 +1156,8 @@ odbc = Connection
 
 
 
-def connect(connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False):
-    return odbc(connectString, autocommit, ansi, timeout, unicode_results)
+def connect(connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False, readonly = False):
+    return odbc(connectString, autocommit, ansi, timeout, unicode_results, readonly)
 
 
 def win_create_mdb(mdb_path):

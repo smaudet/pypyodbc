@@ -17,7 +17,7 @@ def main():
             database_name+' skipped.'
         
         print 'Connecting database server with pypyodbc...'
-        conn = pypyodbc.connect(conn_string, unicode_results = True)
+        conn = pypyodbc.connect(conn_string, unicode_results = True, readonly = False)
 
         
         print 'Has table "pypyodbc_test_tabl"?   ',
@@ -38,7 +38,7 @@ def main():
             cur.execdirect(create_table_sql)
         else:
             cur.execute(create_table_sql)
-        conn.commit()
+        cur.commit()
         
         print ('pypyodbc_test_tabl has been created. Now listing the columns:')
         for row in cur.columns(table='pypyodbc_test_tabl').fetchall():
