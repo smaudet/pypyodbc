@@ -374,16 +374,21 @@ class Cursor:
         for col_num in range(NOC):
             col_name = self.description[col_num][0]
             col_type_code = self._ColTypeCodeList[col_num]
+            
             total_buf_len = self.description[col_num][2] + 1
             
+            # WCHAR types store data in dobule length buffers
+            if col_type_code in (SQL_WCHAR,SQL_WVARCHAR,SQL_WLONGVARCHAR):
+                total_buf_len *= 2
+                 
             # if it's a long data col_num, we enlarge the buffer to predefined length.
             if total_buf_len > 1024000 or total_buf_len < 0: #1MB
                 default_output_size = self._outputsize[None]
                 total_buf_len = self._outputsize.get(col_num,default_output_size)
                 
 
-            
             alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
+
             used_buf_len = ctypes.c_long()
             
             target_type = SqlTypes[col_type_code][2]
@@ -398,6 +403,7 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
             col_buffer_list.append((col_name,alloc_buffer,used_buf_len,buf_cvt_func, target_type))
+
             #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
         self._ColBufferList = col_buffer_list
         
@@ -750,27 +756,11 @@ class Cursor:
 
 
     def fetchone(self):
-        ret = SQLFetch(self._stmt_h)
-        if ret != SQL_SUCCESS:
-            if ret == SQL_NO_DATA_FOUND:
-                return (None)
-            else:
-                validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            
-        row = ROW()
-        
-        for col_name, buf_value, buf_len, cvt_func,target_type in self._ColBufferList:
-            if buf_len.value != SQL_NULL_DATA:
-                if target_type == SQL_C_BINARY:
-                    row.append(cvt_func(buf_value.raw[:buf_len.value]))
-                else:
-                    row.append(cvt_func(buf_value.value))
-                
-            else:
-                row.append(None)
-            setattr(row,col_name,row[-1])
-
-        return (row)
+        records = self.__fetch(1)
+        if records != []:
+            return records[0]
+        else:
+            return None
     
     
     def fetchall(self):
