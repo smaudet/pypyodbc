@@ -31,7 +31,7 @@ if DEBUG: print 'DEBUGGING'
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.6'
+version = '0.7'
 
 
 
