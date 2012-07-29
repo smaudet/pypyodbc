@@ -699,6 +699,8 @@ class Cursor:
         return NOC.value
 
 
+    def fetchall(self):
+        return self.__fetch()
 
 
     def fetchmany(self, num):
@@ -711,11 +713,7 @@ class Cursor:
             return records[0]
         else:
             return None
-    
-    
-    def fetchall(self):
-        return self.__fetch()
-
+        
     
     def __fetch(self, num = 0):
         rows, row_num = [], 0
