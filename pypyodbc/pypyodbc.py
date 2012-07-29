@@ -269,20 +269,21 @@ def ctrl_err(ht, h, val_ret):
             #No more data, I can raise
             if DEBUG: print err_list[0][1]
             state = err_list[0][0]
+            err_text = '['+state+'] '+err_list[0][1]
             if state[:2] in ('24','25','42'):
-                raise ProgrammingError(state,'['+state+'] '+err_list[0][1])
+                raise ProgrammingError(state,err_text)
             elif state[:2] in ('22'):
-                raise DataError(state,'['+state+'] '+err_list[0][1])
+                raise DataError(state,err_text)
             elif state[:2] in ('23') or state == '40002':
-                raise IntegrityError(state,'['+state+'] '+err_list[0][1])
+                raise IntegrityError(state,err_text)
             elif state == '0A000':
-                raise NotSupportedError(state,'['+state+'] '+err_list[0][1])
+                raise NotSupportedError(state,err_text)
             elif state in ('HYT00','HYT01'):
-                raise OperationalError(state,'['+state+'] '+err_list[0][1])
+                raise OperationalError(state,err_text)
             elif state[:2] in ('IM','HY'):
-                raise Error(state,'['+state+'] '+err_list[0][1])
+                raise Error(state,err_text)
             else:
-                raise DatabaseError(state,'['+state+'] '+err_list[0][1])
+                raise DatabaseError(state,err_text)
             break
         elif ret == SQL_INVALID_HANDLE:
             #The handle passed is an invalid handle
@@ -297,25 +298,6 @@ def validate(ret, handle_type, handle):
     if ret not in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
         ctrl_err(handle_type, handle, ret)
             
-
-def dataSources():
-    """Return a list with [name, descrition]"""
-    dsn = ctypes.create_string_buffer(1024)
-    desc = ctypes.create_string_buffer(1024)
-    dsn_len = ctypes.c_int()
-    desc_len = ctypes.c_int()
-    dsn_list = []
-    
-    while 1:
-        ret = ODBC_API.SQLDataSources(shared_env_h, SQL_FETCH_NEXT, \
-            dsn, len(dsn), ADDR(dsn_len), desc, len(desc), ADDR(desc_len))
-        if ret == SQL_NO_DATA_FOUND:
-            break
-        elif not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
-            ctrl_err(SQL_HANDLE_ENV, shared_env_h, ret)
-        else:
-            dsn_list.append((dsn.value, desc.value))
-    return dsn_list
 
 
 ''' 
@@ -342,6 +324,7 @@ class Cursor:
         """ Initialize self._stmt_h, which is the handle of a statement
         A statement is actually the basis of a python"cursor" object
         """
+        self._stmt_h = ctypes.c_int()
         self.connection = conx
         self.statement = None
         self._last_param_types = None
@@ -354,60 +337,141 @@ class Cursor:
         self._ColTypeCodeList = []
         self._outputsize = {}
         self._inputsizers = []
-        self._stmt_h = ctypes.c_int()
         self.setoutputsize(512000) #512KB as the defalt buffer size for large column
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self.connection.dbc_h, ADDR(self._stmt_h))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.closed = False
-     
-    
-    def setoutputsize(self, size, column = None):
-        self._outputsize[column] = size
-
-
-    
-    def _BindCols(self):
-        '''Bind buffers for the record set columns'''
-        NOC = self.NumOfCols()
-        col_buffer_list = []
-    
-        for col_num in range(NOC):
-            col_name = self.description[col_num][0]
-            col_type_code = self._ColTypeCodeList[col_num]
-            
-            total_buf_len = self.description[col_num][2] + 1
-            
-            # WCHAR types store data in dobule length buffers
-            if col_type_code in (SQL_WCHAR,SQL_WVARCHAR,SQL_WLONGVARCHAR):
-                total_buf_len *= 2
-                 
-            # if it's a long data col_num, we enlarge the buffer to predefined length.
-            if total_buf_len > 1024000 or total_buf_len < 0: #1MB
-                default_output_size = self._outputsize[None]
-                total_buf_len = self._outputsize.get(col_num,default_output_size)
-                
-
-            alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
-
-            used_buf_len = ctypes.c_long()
-            
-            target_type = SqlTypes[col_type_code][2]
-            force_unicode = self.connection.unicode_results
-    
-            if force_unicode and col_type_code in (SQL_CHAR,SQL_VARCHAR,SQL_LONGVARCHAR):
-                target_type = SQL_C_WCHAR
-                alloc_buffer = create_buffer_u(total_buf_len)
-            
-            ret = ODBC_API.SQLBindCol(self._stmt_h, col_num + 1, target_type, ADDR(alloc_buffer), total_buf_len,\
-                ADDR(used_buf_len))
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
-            col_buffer_list.append((col_name,alloc_buffer,used_buf_len,buf_cvt_func, target_type))
-
-            #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
-        self._ColBufferList = col_buffer_list
         
     
+    def execute(self, query_string, params = None, execute_many_mode = False):
+        """ Execute the query string, with optional parameters.
+        If parameters are provided, the query would first be prepared, then executed with parameters;
+        If parameters are not provided, only th query sting, it would be executed directly 
+        """
+        if params != None:
+            # If parameters exist, first prepare the query then executed with parameters
+            if not type(params) in (tuple, list):
+                raise TypeError("Params must be in a list, tuple, or Row")
+            
+            if not execute_many_mode:
+                if query_string != self.statement:
+                    # if the query is not same as last query, then it is not prepared
+                    self.prepare(query_string)
+                    
+            param_types = [type(p) for p in params]
+            if param_types != self._last_param_types:
+                self._BindParams(param_types)
+            
+            # With query prepared, now put parameters into buffers
+            col_num = 0
+            for param_buffer, param_buffer_len in self._ParamBufferList:
+                c_char_buf, c_buf_len = '', 0
+                param_val = params[col_num]
+                if param_val == None:
+                    c_buf_len = -1
+                elif type(param_val) == datetime.datetime:
+                    c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                    datetime_str = param_val.isoformat().replace('T',' ') 
+                    if len(datetime_str) == 19:
+                        datetime_str += '.000'
+                    c_char_buf = datetime_str[:c_buf_len]
+                    if DEBUG: print c_buf_len, c_char_buf
+                elif type(param_val) == datetime.date:
+                    if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
+                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
+                    else:
+                        c_buf_len = 10
+                    c_char_buf = param_val.isoformat()[:c_buf_len]
+                    if DEBUG: print c_char_buf
+                elif type(param_val) == datetime.time:
+                    if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
+                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
+                        c_char_buf = param_val.isoformat()[0:c_buf_len]
+                    else:
+                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
+                        time_str = param_val.isoformat()
+                        if len(time_str) == 8:
+                            time_str += '.000'
+                        c_char_buf = '1900-01-01 '+time_str[0:c_buf_len - 11]
+                    if DEBUG: print c_buf_len, c_char_buf
+                elif type(param_val) == Decimal:
+                    c_char_buf = float(param_val)
+                    
+                elif type(param_val) == str:
+                    c_char_buf = param_val
+                    
+                elif type(param_val) == unicode:
+                    c_char_buf = param_val
+                    
+                elif type(param_val) == bytearray:
+                    c_char_buf = str(param_val)
+                    c_buf_len = len(c_char_buf)
+                    
+                else:
+                    c_char_buf = param_val
+            
+    
+                if type(param_val) in (bytearray,):
+                    param_buffer.raw = c_char_buf
+                else:
+                    param_buffer.value = c_char_buf
+                    
+                if type(param_val) not in (unicode,str):
+                    #ODBC driver will find NUL in unicode and string to determine their length
+                    param_buffer_len.value = c_buf_len
+    
+                col_num += 1
+    
+            self.SQLExecute()
+            if not execute_many_mode:
+                self.NumOfRows()
+                self._UpdateDesc()
+                self._BindCols()
+            
+        else:
+            self.execdirect(query_string)
+        return (self)
+    
+    
+    def SQLExecute(self):
+        ret = SQLExecute(self._stmt_h)
+        if ret != SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+    
+            
+    def prepare(self, query_string):
+        """prepare a query"""
+        if type(query_string) == unicode:
+            ret = ODBC_API.SQLPrepareW(self._stmt_h, query_string, len(query_string))
+        else:
+            ret = ODBC_API.SQLPrepare(self._stmt_h, query_string, len(query_string))
+        if ret != SQL_SUCCESS:
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        self.statement = query_string
+        
+    
+    def execdirect(self, query_string):
+        """Execute a query directly"""
+        if type(query_string) == unicode:
+            ret = ODBC_API.SQLExecDirectW(self._stmt_h, query_string, len(query_string))
+        else:
+            ret = ODBC_API.SQLExecDirect(self._stmt_h, query_string, len(query_string))
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        return (self)
+        
+    
+    def executemany(self, query_string, params_list = [None]):
+        self.prepare(query_string)
+        for params in params_list:
+            self.execute(query_string, params, execute_many_mode = True)
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+
+
     def _BindParams(self, param_types):
         """Create parameter buffers based on param types, and bind them to the statement"""
         # Get the number of query parameters judged by database.
@@ -485,7 +549,7 @@ class Cursor:
                     self._inputsizers.append(buf_size)
                     ParameterBuffer = ctypes.create_string_buffer(buf_size)
                     
-
+    
             elif param_types[col_num] == datetime.time:
                 sql_c_type = SQL_C_CHAR
                 if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
@@ -512,7 +576,7 @@ class Cursor:
                 ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
                 
                 
-
+    
             elif param_types[col_num] == bytearray:
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
@@ -545,110 +609,51 @@ class Cursor:
         self._last_param_types = param_types
         self._ParamBufferList = ParamBufferList
         
-            
     
-    def execute(self, query_string, params = None, execute_many_mode = False):
-        """ Execute the query string, with optional parameters.
-        If parameters are provided, the query would first be prepared, then executed with parameters;
-        If parameters are not provided, only th query sting, it would be executed directly 
-        """
-        if params != None:
-            # If parameters exist, first prepare the query then executed with parameters
-            if not type(params) in (tuple, list):
-                raise TypeError("Params must be in a list, tuple, or Row")
-            
-            if not execute_many_mode:
-                if query_string != self.statement:
-                    # if the query is not same as last query, then it is not prepared
-                    self.prepare(query_string)
-                    
-            param_types = [type(p) for p in params]
-            if param_types != self._last_param_types:
-                self._BindParams(param_types)
-            
-            # With query prepared, now put parameters into buffers
-            col_num = 0
-            for param_buffer, param_buffer_len in self._ParamBufferList:
-                c_char_buf, c_buf_len = '', 0
-                param_val = params[col_num]
-                if param_val == None:
-                    c_buf_len = -1
-                elif type(param_val) == datetime.datetime:
-                    c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
-                    datetime_str = param_val.isoformat().replace('T',' ') 
-                    if len(datetime_str) == 19:
-                        datetime_str += '.000'
-                    c_char_buf = datetime_str[:c_buf_len]
-                    if DEBUG: print c_buf_len, c_char_buf
-                elif type(param_val) == datetime.date:
-                    if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
-                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
-                    else:
-                        c_buf_len = 10
-                    c_char_buf = param_val.isoformat()[:c_buf_len]
-                    if DEBUG: print c_char_buf
-                elif type(param_val) == datetime.time:
-                    if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
-                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
-                        c_char_buf = param_val.isoformat()[0:c_buf_len]
-                    else:
-                        c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
-                        time_str = param_val.isoformat()
-                        if len(time_str) == 8:
-                            time_str += '.000'
-                        c_char_buf = '1900-01-01 '+time_str[0:c_buf_len - 11]
-                    if DEBUG: print c_buf_len, c_char_buf
-                elif type(param_val) == Decimal:
-                    c_char_buf = float(param_val)
-                    
-                elif type(param_val) == str:
-                    c_char_buf = param_val
-                    
-                elif type(param_val) == unicode:
-                    c_char_buf = param_val
-                    
-                elif type(param_val) == bytearray:
-                    c_char_buf = str(param_val)
-                    c_buf_len = len(c_char_buf)
-                    
-                else:
-                    c_char_buf = param_val
-            
 
-                if type(param_val) in (bytearray,):
-                    param_buffer.raw = c_char_buf
-                else:
-                    param_buffer.value = c_char_buf
-                    
-                if type(param_val) not in (unicode,str):
-                    #ODBC driver will find NUL in unicode and string to determine their length
-                    param_buffer_len.value = c_buf_len
-
-                col_num += 1
-
-            self.SQLExecute()
-            if not execute_many_mode:
-                self.NumOfRows()
-                self._UpdateDesc()
-                self._BindCols()
-            
-        else:
-            self.execdirect(query_string)
-        return (self)
+    def _BindCols(self):
+        '''Bind buffers for the record set columns'''
+        NOC = self.NumOfCols()
+        col_buffer_list = []
     
-    def SQLExecute(self):
-        ret = SQLExecute(self._stmt_h)
-        if ret != SQL_SUCCESS:
+        for col_num in range(NOC):
+            col_name = self.description[col_num][0]
+            col_type_code = self._ColTypeCodeList[col_num]
+            
+            total_buf_len = self.description[col_num][2] + 1
+            
+            # WCHAR types store data in dobule length buffers
+            if col_type_code in (SQL_WCHAR,SQL_WVARCHAR,SQL_WLONGVARCHAR):
+                total_buf_len *= 2
+                 
+            # if it's a long data col_num, we enlarge the buffer to predefined length.
+            if total_buf_len > 1024000 or total_buf_len < 0: #1MB
+                default_output_size = self._outputsize[None]
+                total_buf_len = self._outputsize.get(col_num,default_output_size)
+                
+
+            alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
+
+            used_buf_len = ctypes.c_long()
+            
+            target_type = SqlTypes[col_type_code][2]
+            force_unicode = self.connection.unicode_results
+    
+            if force_unicode and col_type_code in (SQL_CHAR,SQL_VARCHAR,SQL_LONGVARCHAR):
+                target_type = SQL_C_WCHAR
+                alloc_buffer = create_buffer_u(total_buf_len)
+            
+            ret = ODBC_API.SQLBindCol(self._stmt_h, col_num + 1, target_type, ADDR(alloc_buffer), total_buf_len,\
+                ADDR(used_buf_len))
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
+            col_buffer_list.append((col_name,alloc_buffer,used_buf_len,buf_cvt_func, target_type))
+
+            #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
+        self._ColBufferList = col_buffer_list
         
     
-    def executemany(self, query_string, params_list = [None]):
-        self.prepare(query_string)
-        for params in params_list:
-            self.execute(query_string, params, execute_many_mode = True)
-        self.NumOfRows()
-        self._UpdateDesc()
-        self._BindCols()
+
         
     def nextset(self):
         ret = ODBC_API.SQLMoreResults(self._stmt_h)
@@ -664,6 +669,7 @@ class Cursor:
             self._BindCols()
         return True
     
+    
     def free_results(self, free_statement):
         self.description = None
         
@@ -678,31 +684,6 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
 
         self.rowcount = -1
-        
-            
-            
-    def prepare(self, query_string):
-        """prepare a query"""
-        if type(query_string) == unicode:
-            ret = ODBC_API.SQLPrepareW(self._stmt_h, query_string, len(query_string))
-        else:
-            ret = ODBC_API.SQLPrepare(self._stmt_h, query_string, len(query_string))
-        if ret != SQL_SUCCESS:
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        self.statement = query_string
-        
-    
-    def execdirect(self, query_string):
-        """Execute a query directly"""
-        if type(query_string) == unicode:
-            ret = ODBC_API.SQLExecDirectW(self._stmt_h, query_string, len(query_string))
-        else:
-            ret = ODBC_API.SQLExecDirect(self._stmt_h, query_string, len(query_string))
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        self.NumOfRows()
-        self._UpdateDesc()
-        self._BindCols()
-        return (self)
         
         
     
@@ -749,7 +730,9 @@ class Cursor:
         ret = ODBC_API.SQLNumResultCols(self._stmt_h, ADDR(NOC))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         return NOC.value
-    
+
+
+
 
     def fetchmany(self, num):
         return self.__fetch(num)
@@ -766,17 +749,9 @@ class Cursor:
     def fetchall(self):
         return self.__fetch()
 
-
-    def skip(self, count = 0):
-        for i in xrange(count):
-            ret = ODBC_API.SQLFetchScroll(self._stmt_h, SQL_FETCH_NEXT, 0)
-            if ret != SQL_SUCCESS:
-                validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        return None
     
     def __fetch(self, num = 0):
-        rows = []
-        row_num = 0
+        rows, row_num = [], 0
         # limit to num time loops, or loop until no data if num == 0
         while num == 0 or row_num < num:
             ret = SQLFetch(self._stmt_h)
@@ -794,50 +769,21 @@ class Cursor:
                         row.append(cvt_func(buf_value.raw[:buf_len.value]))
                     else:
                         row.append(cvt_func(buf_value.value))
-    
-
                 else:
                     row.append(None)
                 setattr(row,col_name,row[-1])
-            
                 
             rows.append(row)
             row_num += 1
+            
         return rows
     
-        
-    def close(self):
-        """ Call SQLCloseCursor API to free the statement handle"""
-#        ret = ODBC_API.SQLCloseCursor(self._stmt_h)
-#        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-#        
-        ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_CLOSE)
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-
-        ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_UNBIND)
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-
-        ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_RESET_PARAMS)
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-
-        ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_STMT, self._stmt_h)
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        
-        self.closed = True
-
-    
-    
-    def __del__(self):  
-        if not self.closed:
-            if DEBUG: print 'auto closing cursor: ',
-            try:
-                self.close()
-            except:
-                if DEBUG: print 'failed'
-                pass
-            else:
-                if DEBUG: print 'succeed'
-                pass
+    def skip(self, count = 0):
+        for i in xrange(count):
+            ret = ODBC_API.SQLFetchScroll(self._stmt_h, SQL_FETCH_NEXT, 0)
+            if ret != SQL_SUCCESS:
+                validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        return None    
     
     
     def getTypeInfo(self, sqlType = None):
@@ -852,35 +798,7 @@ class Cursor:
         self._UpdateDesc()
         self._BindCols()
         return (self)
-
-    def statistics(self, table, catalog=None, schema=None, unique=False, quick=True):
-        l_table = l_catalog = l_schema = 0
-
-        if catalog != None: l_catalog = len(catalog)
-        if schema != None: l_schema = len(schema)
-        if table != None: l_table = len(table)
-        if unique:
-            Unique = SQL_INDEX_UNIQUE
-        else:
-            Unique = SQL_INDEX_ALL
-        if quick:
-            Reserved = SQL_QUICK
-        else:
-            Reserved = SQL_ENSURE
-
-        ret = ODBC_API.SQLStatistics(self._stmt_h,
-                                catalog, l_catalog,
-                                schema, l_schema, 
-                                table, l_table,
-                                Unique, Reserved)
-        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-
-        self.NumOfRows()
-        self._UpdateDesc()
-        self._BindCols()
-        return (self)
-
-
+    
     
     def tables(self, table=None, catalog=None, schema=None, tableType=None):
         """Return a list with all tables""" 
@@ -925,6 +843,7 @@ class Cursor:
         self._BindCols()
         return (self)
     
+    
     def primaryKeys(self, table=None, catalog=None, schema=None):
         l_catalog = l_schema = l_table = 0
         if catalog != None: l_catalog = len(catalog)
@@ -941,6 +860,7 @@ class Cursor:
         self._UpdateDesc()
         self._BindCols()
         return (self)
+    
         
     def foreignKeys(self, table=None, catalog=None, schema=None, foreignTable=None, foreignCatalog=None, foreignSchema=None):
         l_catalog = l_schema = l_table = l_foreignTable = l_foreignCatalog = l_foreignSchema = 0
@@ -965,6 +885,7 @@ class Cursor:
         self._BindCols()
         return (self)
     
+    
     def procedures(self, procedure=None, catalog=None, schema=None):
         l_catalog = l_schema = l_procedure = 0
         if catalog != None: l_catalog = len(catalog)
@@ -982,13 +903,77 @@ class Cursor:
         self._BindCols()
         return (self)
 
+    def statistics(self, table, catalog=None, schema=None, unique=False, quick=True):
+        l_table = l_catalog = l_schema = 0
+    
+        if catalog != None: l_catalog = len(catalog)
+        if schema != None: l_schema = len(schema)
+        if table != None: l_table = len(table)
+        if unique:
+            Unique = SQL_INDEX_UNIQUE
+        else:
+            Unique = SQL_INDEX_ALL
+        if quick:
+            Reserved = SQL_QUICK
+        else:
+            Reserved = SQL_ENSURE
+    
+        ret = ODBC_API.SQLStatistics(self._stmt_h,
+                                catalog, l_catalog,
+                                schema, l_schema, 
+                                table, l_table,
+                                Unique, Reserved)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+    
+        self.NumOfRows()
+        self._UpdateDesc()
+        self._BindCols()
+        return (self)
+    
+
     def commit(self):
         self.connection.commit()
 
     def rollback(self):
         self.connection.rollback()
+    
+    def setoutputsize(self, size, column = None):
+        self._outputsize[column] = size
+
+
+    def close(self):
+        """ Call SQLCloseCursor API to free the statement handle"""
+#        ret = ODBC_API.SQLCloseCursor(self._stmt_h)
+#        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+#        
+        ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_CLOSE)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+        ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_UNBIND)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+        ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_RESET_PARAMS)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+
+        ret = ODBC_API.SQLFreeHandle(SQL_HANDLE_STMT, self._stmt_h)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
-        
+        self.closed = True
+
+    
+    
+    def __del__(self):  
+        if not self.closed:
+            if DEBUG: print 'auto closing cursor: ',
+            try:
+                self.close()
+            except:
+                if DEBUG: print 'failed'
+                pass
+            else:
+                if DEBUG: print 'succeed'
+                pass
+    
         
 
 class Connection:
@@ -1162,3 +1147,23 @@ def win_compact_mdb(mdb_path,compacted_mdb_path):
     c_Path = "COMPACT_DB="+mdb_path+" "+compacted_mdb_path+" General\0\0"
     ODBC_ADD_SYS_DSN = 1
     ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
+
+
+def dataSources():
+    """Return a list with [name, descrition]"""
+    dsn = ctypes.create_string_buffer(1024)
+    desc = ctypes.create_string_buffer(1024)
+    dsn_len = ctypes.c_int()
+    desc_len = ctypes.c_int()
+    dsn_list = []
+    
+    while 1:
+        ret = ODBC_API.SQLDataSources(shared_env_h, SQL_FETCH_NEXT, \
+            dsn, len(dsn), ADDR(dsn_len), desc, len(desc), ADDR(desc_len))
+        if ret == SQL_NO_DATA_FOUND:
+            break
+        elif not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
+            ctrl_err(SQL_HANDLE_ENV, shared_env_h, ret)
+        else:
+            dsn_list.append((dsn.value, desc.value))
+    return dsn_list
