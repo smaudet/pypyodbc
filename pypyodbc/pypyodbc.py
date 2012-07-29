@@ -652,39 +652,6 @@ class Cursor:
             #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
         self._ColBufferList = col_buffer_list
         
-    
-
-        
-    def nextset(self):
-        ret = ODBC_API.SQLMoreResults(self._stmt_h)
-        if ret not in (SQL_SUCCESS, SQL_NO_DATA):
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            
-        if ret == SQL_NO_DATA:
-            self.free_results('FREE_STATEMENT')
-            return False
-        else:
-            self.NumOfRows()
-            self._UpdateDesc()
-            self._BindCols()
-        return True
-    
-    
-    def free_results(self, free_statement):
-        self.description = None
-        
-        if free_statement == 'FREE_STATEMENT':
-            ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_CLOSE)
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        else:
-            ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_UNBIND)
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            
-            ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_RESET_PARAMS)
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-
-        self.rowcount = -1
-        
         
     
     def _UpdateDesc(self):
@@ -778,12 +745,48 @@ class Cursor:
             
         return rows
     
+    
+    
     def skip(self, count = 0):
         for i in xrange(count):
             ret = ODBC_API.SQLFetchScroll(self._stmt_h, SQL_FETCH_NEXT, 0)
             if ret != SQL_SUCCESS:
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         return None    
+    
+    
+        
+    def nextset(self):
+        ret = ODBC_API.SQLMoreResults(self._stmt_h)
+        if ret not in (SQL_SUCCESS, SQL_NO_DATA):
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            
+        if ret == SQL_NO_DATA:
+            self.free_results('FREE_STATEMENT')
+            return False
+        else:
+            self.NumOfRows()
+            self._UpdateDesc()
+            self._BindCols()
+        return True
+    
+    
+    def free_results(self, free_statement):
+        self.description = None
+        
+        if free_statement == 'FREE_STATEMENT':
+            ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_CLOSE)
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        else:
+            ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_UNBIND)
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            
+            ret = ODBC_API.SQLFreeStmt(self._stmt_h, SQL_RESET_PARAMS)
+            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+    
+        self.rowcount = -1
+        
+    
     
     
     def getTypeInfo(self, sqlType = None):
