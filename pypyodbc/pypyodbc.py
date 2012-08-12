@@ -316,9 +316,14 @@ ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 
 validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
 
-
+#
+#The ROW Class. It is defined to inheritant the built-in "list" object type,
+#So that the object of ROW can use the "setattribute" method
 class ROW(list):
     pass
+
+
+
 #
 #The Cursor Class.
 class Cursor:
