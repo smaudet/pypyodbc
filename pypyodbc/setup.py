@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='pypyodbc',
-    version='0.6',
+    version='0.8',
     description='A Pure Python ctypes ODBC module',
     author='jiangwen365',
     author_email='jiangwen365@gmail.com',
@@ -15,7 +15,7 @@ setup(
       classifiers=[
           "License :: OSI Approved :: MIT License",
           "Programming Language :: Python",
-          "Development Status :: 3 - Alpha",
+          "Development Status :: 4 - Beta",
       ],
       keywords='Python, Database, Interface, ODBC, PyPy',
       license='MIT',

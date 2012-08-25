@@ -19,6 +19,12 @@ def main():
         print 'Connecting database server with pypyodbc...'
         conn = pypyodbc.connect(conn_string, unicode_results = True, readonly = False)
 
+        print conn.getinfo(pypyodbc.SQL_SERVER_NAME)
+        print conn.getinfo(pypyodbc.SQL_DBMS_NAME)
+        print conn.getinfo(pypyodbc.SQL_DBMS_VER) 
+        print conn.getinfo(pypyodbc.SQL_DATABASE_NAME)
+        print conn.getinfo(pypyodbc.SQL_PROCEDURES)
+        print conn.getinfo(pypyodbc.SQL_MAX_DRIVER_CONNECTIONS)
         
         print 'Has table "pypyodbc_test_tabl"?   ',
         cur = conn.cursor()
