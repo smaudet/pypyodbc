@@ -20,8 +20,6 @@ def main():
         conn = pypyodbc.connect(conn_string, unicode_results = True, readonly = False)
 
         print conn.getinfo(pypyodbc.SQL_SERVER_NAME)
-        print conn.getinfo(pypyodbc.SQL_DBMS_NAME)
-        print conn.getinfo(pypyodbc.SQL_DBMS_VER) 
         print conn.getinfo(pypyodbc.SQL_DATABASE_NAME)
         print conn.getinfo(pypyodbc.SQL_PROCEDURES)
         print conn.getinfo(pypyodbc.SQL_MAX_DRIVER_CONNECTIONS)

@@ -475,7 +475,15 @@ SQL_XOPEN_CLI_YEAR : 'GI_STRING',
 
 
 
+BINARY = bytearray
 
+DATETIME = datetime.datetime
+
+STRING = str
+
+NUMBER = float
+
+ROWID = int
 
 
 
