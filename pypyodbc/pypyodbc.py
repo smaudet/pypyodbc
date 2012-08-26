@@ -42,7 +42,7 @@ library = "/usr/lib/libodbc.so"
 
 
 # Get the References of the platform's ODBC functions via ctypes 
-if sys.platform == 'win32':
+if sys.platform in ('win32','cli'):
     ODBC_API = ctypes.windll.odbc32
 else:
     if not os.path.exists(library):
