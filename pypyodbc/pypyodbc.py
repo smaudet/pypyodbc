@@ -33,7 +33,7 @@ if DEBUG: print 'DEBUGGING'
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.8'
+version = '0.8.1'
 
 
 
@@ -709,6 +709,7 @@ class Cursor:
                 param_val = params[col_num]
                 if param_val == None:
                     c_buf_len = -1
+                    
                 elif type(param_val) == datetime.datetime:
                     c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                     datetime_str = param_val.isoformat().replace('T',' ') 
@@ -716,6 +717,7 @@ class Cursor:
                         datetime_str += '.000'
                     c_char_buf = datetime_str[:c_buf_len]
                     if DEBUG: print c_buf_len, c_char_buf
+                    
                 elif type(param_val) == datetime.date:
                     if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
                         c_buf_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
@@ -723,6 +725,7 @@ class Cursor:
                         c_buf_len = 10
                     c_char_buf = param_val.isoformat()[:c_buf_len]
                     if DEBUG: print c_char_buf
+                    
                 elif type(param_val) == datetime.time:
                     if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
                         c_buf_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
@@ -734,6 +737,8 @@ class Cursor:
                             time_str += '.000'
                         c_char_buf = '1900-01-01 '+time_str[0:c_buf_len - 11]
                     if DEBUG: print c_buf_len, c_char_buf
+                    
+                    
                 elif type(param_val) == Decimal:
                     c_char_buf = float(param_val)
                     
@@ -753,6 +758,7 @@ class Cursor:
     
                 if type(param_val) in (bytearray,):
                     param_buffer.raw = c_char_buf
+                    
                 else:
                     param_buffer.value = c_char_buf
                     
@@ -761,8 +767,8 @@ class Cursor:
                     param_buffer_len.value = c_buf_len
     
                 col_num += 1
-    
             self.SQLExecute()
+
             if not execute_many_mode:
                 self.NumOfRows()
                 self._UpdateDesc()
@@ -842,7 +848,7 @@ class Cursor:
             prec = 0
             buf_size = 512
         
-            if param_types[col_num] == int:
+            if param_types[col_num] in (int, long):
                 sql_c_type = SQL_C_LONG             
                 sql_type = SQL_INTEGER
                 self._inputsizers.append(buf_size)
