@@ -33,7 +33,7 @@ if DEBUG: print 'DEBUGGING'
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.8.1'
+version = '0.8.2'
 
 
 
@@ -652,7 +652,15 @@ class ROW(list):
     pass
 
 
-
+def get_type(v):
+    t = type(v)
+    if t == str:
+        if len(v) > 255:
+            t = 'long_s'
+    if t == unicode:
+        if len(v) > 255:
+            t = 'long_u'
+    return t
 
 
 
@@ -681,7 +689,8 @@ class Cursor:
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self.connection.dbc_h, ADDR(self._stmt_h))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.closed = False
-        
+    
+    
     
     def execute(self, query_string, params = None, execute_many_mode = False):
         """ Execute the query string, with optional parameters.
@@ -698,7 +707,7 @@ class Cursor:
                     # if the query is not same as last query, then it is not prepared
                     self.prepare(query_string)
                     
-            param_types = [type(p) for p in params]
+            param_types = [get_type(p) for p in params]
             if param_types != self._last_param_types:
                 self._BindParams(param_types)
             
@@ -742,10 +751,10 @@ class Cursor:
                 elif type(param_val) == Decimal:
                     c_char_buf = float(param_val)
                     
-                elif type(param_val) == str:
+                elif type(param_val) in (str, 'long_s'):
                     c_char_buf = param_val
                     
-                elif type(param_val) == unicode:
+                elif type(param_val) in (unicode, 'long_u'):
                     c_char_buf = param_val
                     
                 elif type(param_val) == bytearray:
@@ -762,7 +771,7 @@ class Cursor:
                 else:
                     param_buffer.value = c_char_buf
                     
-                if type(param_val) not in (unicode,str):
+                if type(param_val) not in (unicode,str,'long_u','long_s'):
                     #ODBC driver will find NUL in unicode and string to determine their length
                     param_buffer_len.value = c_buf_len
     
@@ -916,11 +925,35 @@ class Cursor:
                     
             elif param_types[col_num] == unicode:
                 sql_c_type = SQL_C_WCHAR
+                sql_type = SQL_WVARCHAR 
+                buf_size = 255 
+                self._inputsizers.append(buf_size)
+                ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
+                
+                    
+            elif param_types[col_num] == str:
+                sql_c_type = SQL_C_CHAR
+                sql_type = SQL_VARCHAR
+                buf_size = 255 
+                self._inputsizers.append(buf_size)
+                ParameterBuffer = ctypes.create_string_buffer(buf_size)
+
+            elif param_types[col_num] == 'long_u':
+                sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR 
                 buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
                 
+                    
+            elif param_types[col_num] == 'long_s':
+                sql_c_type = SQL_C_CHAR
+                sql_type = SQL_LONGVARCHAR
+                buf_size = 102400 #100kB
+                self._inputsizers.append(buf_size)
+                ParameterBuffer = ctypes.create_string_buffer(buf_size)
+
+
                 
     
             elif param_types[col_num] == bytearray:
@@ -929,6 +962,7 @@ class Cursor:
                 buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.create_string_buffer(buf_size)
+
                 
                 
             else:
