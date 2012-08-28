@@ -130,11 +130,18 @@ def dt_cvt(x):
     if x == '': return None
     else: return datetime.datetime(int(x[0:4]),int(x[5:7]),int(x[8:10]))
 
-def create_buffer_u(len):
-    return ctypes.create_unicode_buffer(len)
+#def create_buffer_u(len):
+#    return ctypes.create_unicode_buffer(len)
+#
+#def create_buffer(len):
+#    return ctypes.create_string_buffer(len)
+#
+#
 
-def create_buffer(len):
-    return ctypes.create_string_buffer(len)
+create_buffer_u = ctypes.create_unicode_buffer
+
+create_buffer = ctypes.create_string_buffer
+
 
 # Below Datatype mappings referenced the document at
 # http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.aseodbc/html/aseodbc/CACFDIGH.htm
