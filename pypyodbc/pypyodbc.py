@@ -1087,19 +1087,51 @@ class Cursor:
 
 
     def fetchall(self):
-        return self.__fetch()
+        rows = []
+        
+        while True:
+            row = self.fetchone()
+            if row == None:
+                break
+            rows.append(row)
+
+        return rows
+        
 
 
     def fetchmany(self, num):
-        return self.__fetch(num)
+        rows, row_num = [], 0
+        
+        while row_num < num:
+            row = self.fetchone()
+            if row == None:
+                break
+            rows.append(row)
+            row_num += 1
+        return rows
 
 
     def fetchone(self):
-        records = self.__fetch(1)
-        if records != []:
-            return records[0]
-        else:
-            return None
+        ret = SQLFetch(self._stmt_h)
+        if ret != SQL_SUCCESS:
+            if ret == SQL_NO_DATA_FOUND:
+                return None
+            else:
+                validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+            
+        row = ROW()
+        
+        for col_name, buf_value, buf_len, cvt_func, target_type in self._ColBufferList:
+            if buf_len.value != SQL_NULL_DATA:
+                if target_type == SQL_C_BINARY:
+                    row.append(cvt_func(buf_value.raw[:buf_len.value]))
+                else:
+                    row.append(cvt_func(buf_value.value))
+            else:
+                row.append(None)
+            setattr(row,col_name,row[-1])
+            
+        return row
         
     
     def __fetch(self, num = 0):
