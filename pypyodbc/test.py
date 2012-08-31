@@ -17,7 +17,7 @@ def main():
             database_name+' skipped.'
         
         print 'Connecting database server with pypyodbc...'
-        conn = pypyodbc.connect(conn_string, unicode_results = True, readonly = False)
+        conn = pypyodbc.connect(conn_string, unicode_results = True, readonly = False, timeout = 1)
 
         print conn.getinfo(pypyodbc.SQL_SERVER_NAME)
         print conn.getinfo(pypyodbc.SQL_DATABASE_NAME)
@@ -160,7 +160,7 @@ def main():
         cur.close()
         conn.commit()
         cur = conn.cursor()
-        for field in cur.execute(u"""select * from pypyodbc_test_tabl""").fetchone():
+        for field in cur.execute(u"""select product_name,数量,价格,日期,shijian,riqi, kong,bin_logo  from pypyodbc_test_tabl""").fetchone():
             if isinstance(field, unicode):
                 print field.encode('mbcs')+'\t',
             elif isinstance(field, bytearray):

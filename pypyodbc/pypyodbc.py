@@ -576,7 +576,8 @@ for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_
 
 # Set the alias for the ctypes functions for beter code readbility or performance.
 ADDR = ctypes.byref
-SQLFetch = ODBC_API.SQLFetch
+def SQLFetch(i):
+    return ODBC_API.SQLFetch(i)
 SQLFetch.argtypes = [ctypes.c_int]
 SQLExecute = ODBC_API.SQLExecute
 SQLExecute.argtypes = [ctypes.c_int]
@@ -663,10 +664,10 @@ def get_type(v):
     t = type(v)
     if t == str:
         if len(v) > 255:
-            t = 'long_s'
+            t = 's'
     if t == unicode:
         if len(v) > 255:
-            t = 'long_u'
+            t = 'u'
     return t
 
 
@@ -758,10 +759,10 @@ class Cursor:
                 elif type(param_val) == Decimal:
                     c_char_buf = float(param_val)
                     
-                elif type(param_val) in (str, 'long_s'):
+                elif type(param_val) in (str, 's'):
                     c_char_buf = param_val
                     
-                elif type(param_val) in (unicode, 'long_u'):
+                elif type(param_val) in (unicode, 'u'):
                     c_char_buf = param_val
                     
                 elif type(param_val) == bytearray:
@@ -778,7 +779,7 @@ class Cursor:
                 else:
                     param_buffer.value = c_char_buf
                     
-                if type(param_val) not in (unicode,str,'long_u','long_s'):
+                if type(param_val) not in (unicode,str,'u','s'):
                     #ODBC driver will find NUL in unicode and string to determine their length
                     param_buffer_len.value = c_buf_len
     
@@ -945,7 +946,7 @@ class Cursor:
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
 
-            elif param_types[col_num] == 'long_u':
+            elif param_types[col_num] == 'u':
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR 
                 buf_size = 102400 #100kB
@@ -953,7 +954,7 @@ class Cursor:
                 ParameterBuffer = create_buffer_u(buf_size)
                 
                     
-            elif param_types[col_num] == 'long_s':
+            elif param_types[col_num] == 's':
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
                 buf_size = 102400 #100kB
@@ -982,7 +983,7 @@ class Cursor:
             BufferLen = ctypes.c_long(buf_size)
             LenOrIndBuf = ctypes.c_long()
                 
-            if param_types[col_num] in (unicode,str):
+            if param_types[col_num] in (unicode,str,'u','s'):
                 ret = SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
                         prec, ADDR(ParameterBuffer), ADDR(BufferLen),None)
             else:
@@ -1132,35 +1133,6 @@ class Cursor:
             setattr(row,col_name,row[-1])
             
         return row
-        
-    
-    def __fetch(self, num = 0):
-        rows, row_num = [], 0
-        # limit to num time loops, or loop until no data if num == 0
-        while num == 0 or row_num < num:
-            ret = SQLFetch(self._stmt_h)
-            if ret != SQL_SUCCESS:
-                if ret == SQL_NO_DATA_FOUND:
-                    break
-                else:
-                    validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-                
-            row = ROW()
-            
-            for col_name, buf_value, buf_len, cvt_func, target_type in self._ColBufferList:
-                if buf_len.value != SQL_NULL_DATA:
-                    if target_type == SQL_C_BINARY:
-                        row.append(cvt_func(buf_value.raw[:buf_len.value]))
-                    else:
-                        row.append(cvt_func(buf_value.value))
-                else:
-                    row.append(None)
-                setattr(row,col_name,row[-1])
-                
-            rows.append(row)
-            row_num += 1
-            
-        return rows
     
     
     

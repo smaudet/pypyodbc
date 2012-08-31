@@ -1,4 +1,4 @@
 test.py pyodbc > benchmarklog.txt
-test.py >> benchmarklog.txt
+test.py profile >> benchmarklog.txt
 
 
