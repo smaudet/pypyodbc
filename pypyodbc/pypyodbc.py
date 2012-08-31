@@ -131,10 +131,10 @@ def dt_cvt(x):
     else: return datetime.datetime(int(x[0:4]),int(x[5:7]),int(x[8:10]))
 
 #def create_buffer_u(len):
-#    return ctypes.create_unicode_buffer(len)
+#    return create_buffer_u(len)
 #
 #def create_buffer(len):
-#    return ctypes.create_string_buffer(len)
+#    return create_buffer(len)
 #
 #
 
@@ -588,9 +588,9 @@ ODBC_API.SQLPrepareW.argtypes = [ctypes.c_int,ctypes.c_wchar_p,ctypes.c_int]
 def ctrl_err(ht, h, val_ret):
     """Classify type of ODBC error from (type of handle, handle, return value)
     , and raise with a list"""
-    state = ctypes.create_string_buffer(5)
+    state = create_buffer(5)
     NativeError = ctypes.c_int()
-    Message = ctypes.create_string_buffer(1024*10)
+    Message = create_buffer(1024*10)
     Buffer_len = ctypes.c_int()
     err_list = []
     number_errors = 1
@@ -890,7 +890,7 @@ class Cursor:
                 sql_type = SQL_TYPE_TIMESTAMP
                 buf_size = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                 self._inputsizers.append(buf_size)
-                ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                ParameterBuffer = create_buffer(buf_size)
                 prec = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][1]
                 
                 
@@ -901,7 +901,7 @@ class Cursor:
                     sql_type = SQL_TYPE_DATE
                     buf_size = self.connection.type_size_dic[SQL_TYPE_DATE][0]
                     self._inputsizers.append(buf_size)
-                    ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                    ParameterBuffer = create_buffer(buf_size)
                     prec = self.connection.type_size_dic[SQL_TYPE_DATE][1]
                     
                 else:
@@ -909,7 +909,7 @@ class Cursor:
                     sql_type = SQL_TYPE_TIMESTAMP 
                     buf_size = 10
                     self._inputsizers.append(buf_size)
-                    ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                    ParameterBuffer = create_buffer(buf_size)
                     
     
             elif param_types[col_num] == datetime.time:
@@ -918,7 +918,7 @@ class Cursor:
                     sql_type = SQL_TYPE_TIME
                     buf_size = self.connection.type_size_dic[SQL_TYPE_TIME][0]
                     self._inputsizers.append(buf_size)
-                    ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                    ParameterBuffer = create_buffer(buf_size)
                     prec = self.connection.type_size_dic[SQL_TYPE_TIME][1]
                     
                     
@@ -926,7 +926,7 @@ class Cursor:
                     sql_type = SQL_TYPE_TIMESTAMP #SQL Sever use -9 to represent date, instead of SQL_TYPE_DATE
                     buf_size = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                     self._inputsizers.append(buf_size)
-                    ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                    ParameterBuffer = create_buffer(buf_size)
                     prec = 3
                     
                     
@@ -935,7 +935,7 @@ class Cursor:
                 sql_type = SQL_WVARCHAR 
                 buf_size = 255 
                 self._inputsizers.append(buf_size)
-                ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
+                ParameterBuffer = create_buffer_u(buf_size)
                 
                     
             elif param_types[col_num] == str:
@@ -943,14 +943,14 @@ class Cursor:
                 sql_type = SQL_VARCHAR
                 buf_size = 255 
                 self._inputsizers.append(buf_size)
-                ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                ParameterBuffer = create_buffer(buf_size)
 
             elif param_types[col_num] == 'long_u':
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR 
                 buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
-                ParameterBuffer = ctypes.create_unicode_buffer(buf_size)
+                ParameterBuffer = create_buffer_u(buf_size)
                 
                     
             elif param_types[col_num] == 'long_s':
@@ -958,7 +958,7 @@ class Cursor:
                 sql_type = SQL_LONGVARCHAR
                 buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
-                ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                ParameterBuffer = create_buffer(buf_size)
 
 
                 
@@ -968,7 +968,7 @@ class Cursor:
                 sql_type = SQL_LONGVARBINARY 
                 buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
-                ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                ParameterBuffer = create_buffer(buf_size)
 
                 
                 
@@ -977,7 +977,7 @@ class Cursor:
                 sql_type = SQL_LONGVARCHAR
                 buf_size = 102400 #100kB
                 self._inputsizers.append(buf_size)
-                ParameterBuffer = ctypes.create_string_buffer(buf_size)
+                ParameterBuffer = create_buffer(buf_size)
                 
             BufferLen = ctypes.c_long(buf_size)
             LenOrIndBuf = ctypes.c_long()
@@ -1043,7 +1043,7 @@ class Cursor:
     
     def _UpdateDesc(self):
         "Get the information of (name, type_code, display_size, internal_size, precision, scale, null_ok)"  
-        Cname = ctypes.create_string_buffer(1024)
+        Cname = create_buffer(1024)
         Cname_ptr = ctypes.c_int()
         Ctype_code = ctypes.c_short()
         Csize = ctypes.c_int()
@@ -1054,7 +1054,7 @@ class Cursor:
         self._ColTypeCodeList = []
         NOC = self.NumOfCols()
         for col in range(1, NOC+1):
-            ret = ODBC_API.SQLColAttribute(self._stmt_h, col, SQL_DESC_DISPLAY_SIZE, ADDR(ctypes.create_string_buffer(10)), 
+            ret = ODBC_API.SQLColAttribute(self._stmt_h, col, SQL_DESC_DISPLAY_SIZE, ADDR(create_buffer(10)), 
                 10, ADDR(ctypes.c_int()),ADDR(Cdisp_size))
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             
@@ -1443,10 +1443,10 @@ class Connection:
         # so it can be converted to a ctypes c_char array object 
         self.connectString = connectString
         if type(self.connectString) == unicode:
-            c_connectString = ctypes.create_unicode_buffer(self.connectString)
+            c_connectString = create_buffer_u(self.connectString)
             ret = ODBC_API.SQLDriverConnectW(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
         else:
-            c_connectString = ctypes.create_string_buffer(self.connectString)
+            c_connectString = create_buffer(self.connectString)
             ret = ODBC_API.SQLDriverConnect(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
             
@@ -1477,9 +1477,9 @@ class Connection:
         self.user = user
         self.passwd = passwd
 
-        sn = ctypes.create_string_buffer(dsn)
-        un = ctypes.create_string_buffer(user)        
-        pw = ctypes.create_string_buffer(passwd)
+        sn = create_buffer(dsn)
+        un = create_buffer(user)        
+        pw = create_buffer(passwd)
         
         ret = ODBC_API.SQLConnect(self.dbc_h, sn, len(sn), un, len(un), pw, len(pw))
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
@@ -1617,8 +1617,8 @@ def win_compact_mdb(mdb_path,compacted_mdb_path):
 
 def dataSources():
     """Return a list with [name, descrition]"""
-    dsn = ctypes.create_string_buffer(1024)
-    desc = ctypes.create_string_buffer(1024)
+    dsn = create_buffer(1024)
+    desc = create_buffer(1024)
     dsn_len = ctypes.c_int()
     desc_len = ctypes.c_int()
     dsn_list = []
