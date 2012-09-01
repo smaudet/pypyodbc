@@ -950,7 +950,7 @@ class Cursor:
             elif param_types[col_num] == 'u':
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR 
-                buf_size = 102400 #100kB
+                buf_size = 1024000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer_u(buf_size)
                 
@@ -958,7 +958,7 @@ class Cursor:
             elif param_types[col_num] == 's':
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = 102400 #100kB
+                buf_size = 1024000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
 
@@ -968,7 +968,7 @@ class Cursor:
             elif param_types[col_num] == bytearray:
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
-                buf_size = 102400 #100kB
+                buf_size = 1024000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
 
@@ -977,7 +977,7 @@ class Cursor:
             else:
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = 102400 #100kB
+                buf_size = 1024000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
                 
@@ -1019,8 +1019,8 @@ class Cursor:
                 total_buf_len *= 2
                  
             # if it's a long data col_num, we enlarge the buffer to predefined length.
-            if total_buf_len > 1024 or total_buf_len < 0: #1MB
-                total_buf_len = 1024
+            if total_buf_len > 6048 or total_buf_len < 0: #1MB
+                total_buf_len = 6048
                 
 
             alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
@@ -1040,26 +1040,33 @@ class Cursor:
                 ret = ODBC_API.SQLGetData(self._stmt_h, col_num + 1, target_type, ADDR(alloc_buffer), total_buf_len,\
                                 ADDR(used_buf_len))
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-                                
+                
+
+                if ret == SQL_SUCCESS_WITH_INFO:
+                    if target_type == SQL_C_BINARY:
+                        blocks.append(alloc_buffer.raw)
+                    else:
+                        blocks.append(alloc_buffer.value)
+                    continue
+
+                
                 if used_buf_len.value == SQL_NULL_DATA:
                     blocks.append(None)
                     break
-                elif used_buf_len.value == SQL_NO_TOTAL:
-                    if target_type == SQL_C_BINARY:
-                        blocks.append((alloc_buffer.raw[:1024]))
-                    else:
-                        blocks.append((alloc_buffer.value))
+
+                
                 else:
                     if target_type == SQL_C_BINARY:
-                        blocks.append((alloc_buffer.raw[:used_buf_len.value]))
+                        blocks.append(alloc_buffer.raw[:used_buf_len.value])
                     else:
-                        blocks.append((alloc_buffer.value))
+                        blocks.append(alloc_buffer.value)
                     break
+                
             if len(blocks) == 1:
                 raw_value = blocks[0]
                 if raw_value == None:
                     value_list.append(None)
-                    setattr(value_list,col_name,value_list[-1])
+                    setattr(value_list,col_name,None)
                     continue
             else:
                 raw_value = ''.join(blocks)
