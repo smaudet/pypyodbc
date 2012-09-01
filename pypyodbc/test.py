@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, os, time, datetime
+import sys, os, time
 from decimal import Decimal
 
 
@@ -186,7 +186,7 @@ def main():
         #print conn.FetchAll()
         #Close before exit
         cur.close()
-        import cProfile
+
         #cProfile.run('prof_func()')
 
         #conn.close()
@@ -237,10 +237,10 @@ if __name__ == "__main__":
         import pyodbc as pypyodbc
     else:
         print 'Running with pypyodbc'
-        import pypyodbc as pypyodbc
+        import pypyodbc
         
         
-        
+    print pypyodbc.version    
     mdb_path = cur_file_dir()+u'\\e.mdb'
     
     if hasattr(pypyodbc,'win_create_mdb'):

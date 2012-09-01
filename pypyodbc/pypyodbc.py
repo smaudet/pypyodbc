@@ -23,7 +23,7 @@
 
 
 import sys, os, datetime, ctypes
-from decimal import *
+from decimal import Decimal
 
 DEBUG = 0
 # Comment out all "if DEBUG:" statements like below for production
@@ -33,24 +33,8 @@ if DEBUG: print 'DEBUGGING'
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.8.2'
+version = '0.8.3'
 
-
-
-# Set the library location on linux 
-library = "/usr/lib/libodbc.so"
-
-
-# Get the References of the platform's ODBC functions via ctypes 
-if sys.platform in ('win32','cli'):
-    ODBC_API = ctypes.windll.odbc32
-else:
-    if not os.path.exists(library):
-        raise OdbcNoLibrary, 'Library %s not found' % library
-    try:
-        ODBC_API = ctypes.cdll.LoadLibrary(library)
-    except:
-        raise OdbcLibraryError, 'Error while loading %s' % library
 
 
 # Define ODBC constants. They are widly used in ODBC documents and programs
@@ -61,7 +45,7 @@ SQL_DRIVER_NOPROMPT = 0
 SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
 SQL_NULL_HANDLE, SQL_HANDLE_ENV, SQL_HANDLE_DBC, SQL_HANDLE_STMT = 0, 1, 2, 3
 SQL_SUCCESS, SQL_SUCCESS_WITH_INFO = 0, 1
-SQL_NO_DATA = 100
+SQL_NO_DATA = 100; SQL_NO_TOTAL = -4
 SQL_ATTR_ACCESS_MODE = SQL_ACCESS_MODE = 101
 SQL_ATTR_AUTOCOMMIT = SQL_AUTOCOMMIT = 102
 
@@ -563,11 +547,28 @@ class Error(Exception):
 
 
 
+# Set the library location on linux 
+library = "/usr/lib/libodbc.so"
+
+
+# Get the References of the platform's ODBC functions via ctypes 
+if sys.platform in ('win32','cli'):
+    ODBC_API = ctypes.windll.odbc32
+else:
+    if not os.path.exists(library):
+        raise OdbcNoLibrary, 'Library %s not found' % library
+    try:
+        ODBC_API = ctypes.cdll.LoadLibrary(library)
+    except:
+        raise OdbcLibraryError, 'Error while loading %s' % library
+
+
+
 # Define the python return type for ODBC functions with ret result.
 funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCols","SQLDescribeCol","SQLColAttribute",
         "SQLGetDiagRec","SQLAllocHandle","SQLSetEnvAttr","SQLExecDirect","SQLExecDirectW","SQLRowCount",
         "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLDriverConnectW",
-        "SQLConnect","SQLTables","SQLStatistics","SQLFetchScroll","SQLMoreResults","SQLGetInfo",
+        "SQLConnect","SQLTables","SQLStatistics","SQLFetchScroll","SQLMoreResults","SQLGetInfo","SQLGetData",
         "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
         "SQLDescribeParam","SQLGetTypeInfo","SQLPrimaryKeys","SQLForeignKeys","SQLProcedures"]
 for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
@@ -1000,9 +1001,12 @@ class Cursor:
     
 
     def _BindCols(self):
+        return
+    
+    def _GetData(self):
         '''Bind buffers for the record set columns'''
         NOC = self.NumOfCols()
-        col_buffer_list = []
+        value_list = ROW()
     
         for col_num in range(NOC):
             col_name = self.description[col_num][0]
@@ -1015,9 +1019,8 @@ class Cursor:
                 total_buf_len *= 2
                  
             # if it's a long data col_num, we enlarge the buffer to predefined length.
-            if total_buf_len > 1024000 or total_buf_len < 0: #1MB
-                default_output_size = self._outputsize[None]
-                total_buf_len = self._outputsize.get(col_num,default_output_size)
+            if total_buf_len > 1024 or total_buf_len < 0: #1MB
+                total_buf_len = 1024
                 
 
             alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
@@ -1031,14 +1034,43 @@ class Cursor:
                 target_type = SQL_C_WCHAR
                 alloc_buffer = create_buffer_u(total_buf_len)
             
-            ret = ODBC_API.SQLBindCol(self._stmt_h, col_num + 1, target_type, ADDR(alloc_buffer), total_buf_len,\
-                ADDR(used_buf_len))
-            validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
-            col_buffer_list.append((col_name,alloc_buffer,used_buf_len,buf_cvt_func, target_type))
+            
+            blocks = []
+            while True:
+                ret = ODBC_API.SQLGetData(self._stmt_h, col_num + 1, target_type, ADDR(alloc_buffer), total_buf_len,\
+                                ADDR(used_buf_len))
+                validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+                                
+                if used_buf_len.value == SQL_NULL_DATA:
+                    blocks.append(None)
+                    break
+                elif used_buf_len.value == SQL_NO_TOTAL:
+                    if target_type == SQL_C_BINARY:
+                        blocks.append((alloc_buffer.raw[:1024]))
+                    else:
+                        blocks.append((alloc_buffer.value))
+                else:
+                    if target_type == SQL_C_BINARY:
+                        blocks.append((alloc_buffer.raw[:used_buf_len.value]))
+                    else:
+                        blocks.append((alloc_buffer.value))
+                    break
+            if len(blocks) == 1:
+                raw_value = blocks[0]
+                if raw_value == None:
+                    value_list.append(None)
+                    setattr(value_list,col_name,value_list[-1])
+                    continue
+            else:
+                raw_value = ''.join(blocks)
 
+            
+            
+            buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
+            value_list.append(buf_cvt_func(raw_value))
+            setattr(value_list,col_name,value_list[-1])
             #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
-        self._ColBufferList = col_buffer_list
+        return value_list
         
         
     
@@ -1120,19 +1152,17 @@ class Cursor:
             else:
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             
-        row = ROW()
+
+#        if total_len != SQL_NULL_DATA:
+#            if target_type == SQL_C_BINARY:
+#                row.append(buf_cvt_func(total_buffer.raw[:total_len]))
+#            else:
+#                row.append(buf_cvt_func(total_buffer.value))
+#        else:
+#            row.append(None)
+#        setattr(row,col_name,row[-1])
         
-        for col_name, buf_value, buf_len, cvt_func, target_type in self._ColBufferList:
-            if buf_len.value != SQL_NULL_DATA:
-                if target_type == SQL_C_BINARY:
-                    row.append(cvt_func(buf_value.raw[:buf_len.value]))
-                else:
-                    row.append(cvt_func(buf_value.value))
-            else:
-                row.append(None)
-            setattr(row,col_name,row[-1])
-            
-        return row
+        return self._GetData()
     
     
     
@@ -1287,7 +1317,7 @@ class Cursor:
         ret = ODBC_API.SQLProcedures(self._stmt_h,
                             catalog, l_catalog,
                             schema, l_schema,
-                            procedure, l_proceduree)
+                            procedure, l_procedure)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
         self.NumOfRows()
