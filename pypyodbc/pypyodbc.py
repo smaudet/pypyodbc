@@ -577,8 +577,7 @@ for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_
 
 # Set the alias for the ctypes functions for beter code readbility or performance.
 ADDR = ctypes.byref
-def SQLFetch(i):
-    return ODBC_API.SQLFetch(i)
+SQLFetch = ODBC_API.SQLFetch
 SQLFetch.argtypes = [ctypes.c_int]
 SQLExecute = ODBC_API.SQLExecute
 SQLExecute.argtypes = [ctypes.c_int]
@@ -950,7 +949,7 @@ class Cursor:
             elif param_types[col_num] == 'u':
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR 
-                buf_size = 1024000 #100kB
+                buf_size = 128000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer_u(buf_size)
                 
@@ -958,7 +957,7 @@ class Cursor:
             elif param_types[col_num] == 's':
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = 1024000 #100kB
+                buf_size = 128000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
 
@@ -968,7 +967,7 @@ class Cursor:
             elif param_types[col_num] == bytearray:
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
-                buf_size = 1024000 #100kB
+                buf_size = 128000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
 
@@ -977,7 +976,7 @@ class Cursor:
             else:
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = 1024000 #100kB
+                buf_size = 128000 #100kB
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
                 
@@ -1039,50 +1038,40 @@ class Cursor:
         
         value_list = ROW()
         col_num = 0
-        if len(self._ColBufferList) == 0:
-            self._CreateColBuf()
         for col_name, target_type, used_buf_len, alloc_buffer, total_buf_len, buf_cvt_func in self._ColBufferList:
             blocks = []
             while True:
                 ret = ODBC_API.SQLGetData(self._stmt_h, col_num + 1, target_type, ADDR(alloc_buffer), total_buf_len,\
                                 ADDR(used_buf_len))
-                validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+                validate(ret, SQL_HANDLE_STMT, self._stmt_h)    
                 
-
-                if ret == SQL_SUCCESS_WITH_INFO:
+                if ret == SQL_SUCCESS:
+                    if used_buf_len.value == SQL_NULL_DATA:
+                        blocks.append(None)                    
+                    else:
+                        if target_type == SQL_C_BINARY:
+                            blocks.append(alloc_buffer.raw[:used_buf_len.value])
+                        else:
+                            blocks.append(alloc_buffer.value)
+                    break                    
+                
+                else: #SQL_SUCCESS_WITH_INFO
                     if target_type == SQL_C_BINARY:
                         blocks.append(alloc_buffer.raw)
                     else:
-                        blocks.append(alloc_buffer.value)
-                    continue
+                        blocks.append(alloc_buffer.value)               
 
-                
-                if used_buf_len.value == SQL_NULL_DATA:
-                    blocks.append(None)
-                    break
-
-                
-                else:
-                    if target_type == SQL_C_BINARY:
-                        blocks.append(alloc_buffer.raw[:used_buf_len.value])
-                    else:
-                        blocks.append(alloc_buffer.value)
-                    break
                 
             if len(blocks) == 1:
                 raw_value = blocks[0]
-                if raw_value == None:
-                    value_list.append(None)
-                    setattr(value_list,col_name,None)
-                    col_num += 1
-                    continue
             else:
                 raw_value = ''.join(blocks)
 
-            
-            value_list.append(buf_cvt_func(raw_value))
+            if raw_value == None:
+                value_list.append(None)
+            else:
+                value_list.append(buf_cvt_func(raw_value))
             setattr(value_list,col_name,value_list[-1])
-            #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
             col_num += 1
         return value_list
         
@@ -1114,7 +1103,7 @@ class Cursor:
                 Csize.value,Cprecision.value, None,Cnull_ok.value == 1 and True or False))
             self._ColTypeCodeList.append(Ctype_code.value)
         self.description = ColDescr
-        
+        self._CreateColBuf()
     
     def NumOfRows(self):
         """Get the number of rows"""
@@ -1160,23 +1149,16 @@ class Cursor:
 
     def fetchone(self):
         ret = SQLFetch(self._stmt_h)
-        if ret != SQL_SUCCESS:
+        if ret == SQL_SUCCESS:
+            return self._GetData()
+        else:
             if ret == SQL_NO_DATA_FOUND:
                 return None
             else:
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-            
 
-#        if total_len != SQL_NULL_DATA:
-#            if target_type == SQL_C_BINARY:
-#                row.append(buf_cvt_func(total_buffer.raw[:total_len]))
-#            else:
-#                row.append(buf_cvt_func(total_buffer.value))
-#        else:
-#            row.append(None)
-#        setattr(row,col_name,row[-1])
 
-        return self._GetData()
+        
     
     
     

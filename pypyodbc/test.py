@@ -256,7 +256,7 @@ if __name__ == "__main__":
         ('SQLServer',
         'DSN=MSSQL',
         u"""create table pypyodbc_test_tabl (ID integer PRIMARY KEY,product_name text,数量 numeric(14,4),价格 float,日期 
-                datetime,shijian varchar(20),riqi varchar(20), kong float, bin_logo varbinary(5000))""",
+                datetime,shijian varchar(20),riqi varchar(20), kong float, bin_logo varbinary(8000))""",
         ),
         ('MySQL',
         'DSN=MYSQL',
