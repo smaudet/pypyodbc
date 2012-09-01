@@ -790,7 +790,7 @@ class Cursor:
             if not execute_many_mode:
                 self.NumOfRows()
                 self._UpdateDesc()
-                self._BindCols()
+                #self._BindCols()
             
         else:
             self.execdirect(query_string)
@@ -823,7 +823,7 @@ class Cursor:
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.NumOfRows()
         self._UpdateDesc()
-        self._BindCols()
+        #self._BindCols()
         return (self)
         
     
@@ -833,7 +833,7 @@ class Cursor:
             self.execute(query_string, params, execute_many_mode = True)
         self.NumOfRows()
         self._UpdateDesc()
-        self._BindCols()
+        #self._BindCols()
 
 
     def _BindParams(self, param_types):
@@ -1000,14 +1000,9 @@ class Cursor:
         
     
 
-    def _BindCols(self):
-        return
-    
-    def _GetData(self):
-        '''Bind buffers for the record set columns'''
+    def _CreateColBuf(self):
         NOC = self.NumOfCols()
-        value_list = ROW()
-    
+        self._ColBufferList = []
         for col_num in range(NOC):
             col_name = self.description[col_num][0]
             col_type_code = self._ColTypeCodeList[col_num]
@@ -1019,8 +1014,8 @@ class Cursor:
                 total_buf_len *= 2
                  
             # if it's a long data col_num, we enlarge the buffer to predefined length.
-            if total_buf_len > 6048 or total_buf_len < 0: #1MB
-                total_buf_len = 6048
+            if total_buf_len > 2048 or total_buf_len < 0: #1MB
+                total_buf_len = 2048
                 
 
             alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
@@ -1034,7 +1029,19 @@ class Cursor:
                 target_type = SQL_C_WCHAR
                 alloc_buffer = create_buffer_u(total_buf_len)
             
+            buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
             
+            self._ColBufferList.append([col_name, target_type, used_buf_len, alloc_buffer, total_buf_len, buf_cvt_func])     
+        
+    
+    def _GetData(self):
+        '''Bind buffers for the record set columns'''
+        
+        value_list = ROW()
+        col_num = 0
+        if len(self._ColBufferList) == 0:
+            self._CreateColBuf()
+        for col_name, target_type, used_buf_len, alloc_buffer, total_buf_len, buf_cvt_func in self._ColBufferList:
             blocks = []
             while True:
                 ret = ODBC_API.SQLGetData(self._stmt_h, col_num + 1, target_type, ADDR(alloc_buffer), total_buf_len,\
@@ -1067,16 +1074,16 @@ class Cursor:
                 if raw_value == None:
                     value_list.append(None)
                     setattr(value_list,col_name,None)
+                    col_num += 1
                     continue
             else:
                 raw_value = ''.join(blocks)
 
             
-            
-            buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
             value_list.append(buf_cvt_func(raw_value))
             setattr(value_list,col_name,value_list[-1])
             #self.__bind(col_num + 1, col_buffer_list[col_num], buff_id)
+            col_num += 1
         return value_list
         
         
@@ -1168,7 +1175,7 @@ class Cursor:
 #        else:
 #            row.append(None)
 #        setattr(row,col_name,row[-1])
-        
+
         return self._GetData()
     
     
@@ -1193,7 +1200,7 @@ class Cursor:
         else:
             self.NumOfRows()
             self._UpdateDesc()
-            self._BindCols()
+            #self._BindCols()
         return True
     
     
@@ -1225,7 +1232,7 @@ class Cursor:
     
         self.NumOfRows()
         self._UpdateDesc()
-        self._BindCols()
+        #self._BindCols()
         return (self)
     
     
@@ -1248,7 +1255,7 @@ class Cursor:
     
         self.NumOfRows()
         self._UpdateDesc()
-        self._BindCols()
+        #self._BindCols()
         return (self)
     
     
@@ -1269,7 +1276,7 @@ class Cursor:
 
         self.NumOfRows()
         self._UpdateDesc()
-        self._BindCols()
+        #self._BindCols()
         return (self)
     
     
@@ -1287,7 +1294,7 @@ class Cursor:
         
         self.NumOfRows()
         self._UpdateDesc()
-        self._BindCols()
+        #self._BindCols()
         return (self)
     
         
@@ -1311,7 +1318,7 @@ class Cursor:
         
         self.NumOfRows()
         self._UpdateDesc()
-        self._BindCols()
+        #self._BindCols()
         return (self)
     
     
@@ -1329,7 +1336,7 @@ class Cursor:
         
         self.NumOfRows()
         self._UpdateDesc()
-        self._BindCols()
+        #self._BindCols()
         return (self)
 
     def statistics(self, table, catalog=None, schema=None, unique=False, quick=True):
@@ -1356,7 +1363,7 @@ class Cursor:
     
         self.NumOfRows()
         self._UpdateDesc()
-        self._BindCols()
+        #self._BindCols()
         return (self)
     
 
