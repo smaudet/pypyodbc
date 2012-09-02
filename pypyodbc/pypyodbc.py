@@ -547,20 +547,21 @@ class Error(Exception):
 
 
 
-# Set the library location on linux 
-library = "/usr/lib/libodbc.so"
-
-
 # Get the References of the platform's ODBC functions via ctypes 
 if sys.platform in ('win32','cli'):
     ODBC_API = ctypes.windll.odbc32
 else:
-    if not os.path.exists(library):
+    # Set the library location on linux 
+    lib_paths = ("/usr/lib/libodbc.so","/usr/lib/i386-linux-gnu/libodbc.so","/usr/lib/x86_64-linux-gnu/libodbc.so")
+    lib_paths = [path for path in lib_paths if os.path.exists(path)]
+    if len(lib_paths) == 0 :
         raise OdbcNoLibrary, 'Library %s not found' % library
+    library = lib_paths[0]
     try:
         ODBC_API = ctypes.cdll.LoadLibrary(library)
     except:
         raise OdbcLibraryError, 'Error while loading %s' % library
+
 
 
 
