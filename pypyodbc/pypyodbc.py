@@ -555,7 +555,7 @@ else:
     lib_paths = ("/usr/lib/libodbc.so","/usr/lib/i386-linux-gnu/libodbc.so","/usr/lib/x86_64-linux-gnu/libodbc.so")
     lib_paths = [path for path in lib_paths if os.path.exists(path)]
     if len(lib_paths) == 0 :
-        raise OdbcNoLibrary, 'Library %s not found' % library
+        raise OdbcNoLibrary, 'ODBC Library is not found'
     library = lib_paths[0]
     try:
         ODBC_API = ctypes.cdll.LoadLibrary(library)
@@ -986,10 +986,10 @@ class Cursor:
                 
             if param_types[col_num] in (unicode,str,'u','s'):
                 ret = SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
-                        prec, ADDR(ParameterBuffer), ADDR(BufferLen),None)
+                        prec, ADDR(ParameterBuffer), BufferLen,None)
             else:
                 ret = SQLBindParameter(self._stmt_h, col_num + 1, SQL_PARAM_INPUT, sql_c_type, sql_type, buf_size,\
-                        prec, ADDR(ParameterBuffer), ADDR(BufferLen),ADDR(LenOrIndBuf))
+                        prec, ADDR(ParameterBuffer), BufferLen,ADDR(LenOrIndBuf))
             if ret != SQL_SUCCESS:    
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             # Append the value buffer and the lenth buffer to the array
