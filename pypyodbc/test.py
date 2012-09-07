@@ -15,6 +15,7 @@ def main():
             print_header(database_name)
         else:
             database_name+' skipped.'
+            continue
         
         print 'Connecting database server with pypyodbc...'
         conn = pypyodbc.connect(conn_string, unicode_results = True, readonly = False, timeout = 2)
@@ -244,7 +245,7 @@ if __name__ == "__main__":
     print pypyodbc.version    
     mdb_path = cur_file_dir()+u'\\e.mdb'
     
-    if hasattr(pypyodbc,'win_create_mdb'):
+    if hasattr(pypyodbc,'win_create_mdb') and sys.platform in ('win32','cli')::
         pypyodbc.win_create_mdb('"'+mdb_path.encode('mbcs')+'"')
             
     database_strings = [\
@@ -282,6 +283,6 @@ if __name__ == "__main__":
         cProfile.run('main()')
     else:
         main()
-    if hasattr(pypyodbc,'win_compact_mdb'):
+    if hasattr(pypyodbc,'win_compact_mdb') and sys.platform in ('win32','cli'):
         mdb_file_path = '"'+mdb_path.encode('mbcs')+'"'
         pypyodbc.win_compact_mdb(mdb_file_path,mdb_file_path.replace('.mdb','_compact.mdb'))

@@ -1442,11 +1442,11 @@ class Connection:
         # so it can be converted to a ctypes c_char array object 
         self.connectString = connectString
         if type(self.connectString) == unicode:
-            c_connectString = create_buffer_u(self.connectString)
-            ret = ODBC_API.SQLDriverConnectW(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
+            c_connectString = ctypes.c_wchar_p(self.connectString)
+            ret = ODBC_API.SQLDriverConnectW(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
         else:
-            c_connectString = create_buffer(self.connectString)
-            ret = ODBC_API.SQLDriverConnect(self.dbc_h, 0, c_connectString, len(c_connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
+            c_connectString = ctypes.c_char_p(self.connectString)
+            ret = ODBC_API.SQLDriverConnect(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
             
         
