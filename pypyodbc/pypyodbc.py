@@ -1223,10 +1223,21 @@ class Cursor:
         """Return a list with all tables""" 
         l_catalog = l_schema = l_table = l_tableType = 0
         
-        if catalog != None: l_catalog = len(catalog)
-        if schema != None: l_schema = len(schema)
-        if table != None: l_table = len(table)
-        if tableType != None: l_tableType = len(tableType)
+        if catalog != None:
+            l_catalog = len(catalog)
+            catalog = ctypes.c_char_p(catalog) 
+
+        if schema != None: 
+            l_schema = len(schema)
+            schema = ctypes.c_char_p(schema)
+            
+        if table != None:
+            l_table = len(table)
+            table = ctypes.c_char_p(table)
+            
+        if tableType != None: 
+            l_tableType = len(tableType)
+            tableType = ctypes.c_char_p(tableType)
         
         
         ret = ODBC_API.SQLTables(self._stmt_h,
@@ -1245,11 +1256,19 @@ class Cursor:
     def columns(self, table=None, catalog=None, schema=None, column=None):
         """Return a list with all columns"""        
         l_catalog = l_schema = l_table = l_column = 0
-        if catalog != None: l_catalog = len(catalog)
-        if schema != None: l_schema = len(schema)
-        if table != None: l_table = len(table)
-        if column != None: l_column = len(column)
-
+        if catalog != None: 
+            l_catalog = len(catalog)
+            catalog = ctypes.c_char_p(catalog)
+        if schema != None:
+            l_schema = len(schema)
+            schema = ctypes.c_char_p(schema)
+        if table != None: 
+            l_table = len(table)
+            table = ctypes.c_char_p(table)
+        if column != None: 
+            l_column = len(column)
+            column = ctypes.c_char_p(column)
+            
         ret = ODBC_API.SQLColumns(self._stmt_h,
                             catalog, l_catalog,
                             schema, l_schema,
