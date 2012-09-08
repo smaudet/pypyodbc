@@ -586,6 +586,9 @@ SQLBindParameter = ODBC_API.SQLBindParameter
 
 ODBC_API.SQLPrepare.argtypes = [ctypes.c_int,ctypes.c_char_p,ctypes.c_int]
 ODBC_API.SQLPrepareW.argtypes = [ctypes.c_int,ctypes.c_wchar_p,ctypes.c_int]
+ODBC_API.SQLExecDirect.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+ODBC_API.SQLExecDirectW.argtypes = [ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int]
+ODBC_API.SQLTables.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
 
 def ctrl_err(ht, h, val_ret):
     """Classify type of ODBC error from (type of handle, handle, return value)
