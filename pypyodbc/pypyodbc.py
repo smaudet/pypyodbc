@@ -630,7 +630,7 @@ def ctrl_err(ht, h, val_ret):
             
 def validate(ret, handle_type, handle):
     """ Validate return value, if not success, raise exceptions based on the handle """
-    if ret not in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
+    if ret not in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_NO_DATA):
         ctrl_err(handle_type, handle, ret)
             
 
@@ -1284,10 +1284,18 @@ class Cursor:
     
     def primaryKeys(self, table=None, catalog=None, schema=None):
         l_catalog = l_schema = l_table = 0
-        if catalog != None: l_catalog = len(catalog)
-        if schema != None: l_schema = len(schema)
-        if table != None: l_table = len(table)
-        
+        if catalog != None: 
+            l_catalog = len(catalog)
+            catalog = ctypes.c_char_p(catalog)
+            
+        if schema != None: 
+            l_schema = len(schema)
+            schema = ctypes.c_char_p(schema)
+            
+        if table != None: 
+            l_table = len(table)
+            table = ctypes.c_char_p(table)
+            
         ret = ODBC_API.SQLPrimaryKeys(self._stmt_h,
                             catalog, l_catalog,
                             schema, l_schema,
@@ -1302,12 +1310,24 @@ class Cursor:
         
     def foreignKeys(self, table=None, catalog=None, schema=None, foreignTable=None, foreignCatalog=None, foreignSchema=None):
         l_catalog = l_schema = l_table = l_foreignTable = l_foreignCatalog = l_foreignSchema = 0
-        if catalog != None: l_catalog = len(catalog)
-        if schema != None: l_schema = len(schema)
-        if table != None: l_table = len(table)
-        if foreignTable != None: l_foreignTable = len(foreignTable)
-        if foreignCatalog != None: l_foreignCatalog = len(foreignCatalog)
-        if foreignSchema != None: l_foreignSchema = len(foreignSchema)
+        if catalog != None: 
+            l_catalog = len(catalog)
+            catalog = ctypes.c_char_p(catalog)
+        if schema != None: 
+            l_schema = len(schema)
+            schema = ctypes.c_char_p(schema)
+        if table != None: 
+            l_table = len(table)
+            table = ctypes.c_char_p(table)
+        if foreignTable != None: 
+            l_foreignTable = len(foreignTable)
+            foreignTable = ctypes.c_char_p(foreignTable)
+        if foreignCatalog != None: 
+            l_foreignCatalog = len(foreignCatalog)
+            foreignCatalog = ctypes.c_char_p(foreignCatalog)
+        if foreignSchema != None: 
+            l_foreignSchema = len(foreignSchema)
+            foreignSchema = ctypes.c_char_p(foreignSchema)
         
         ret = ODBC_API.SQLForeignKeys(self._stmt_h,
                             catalog, l_catalog,
@@ -1326,10 +1346,16 @@ class Cursor:
     
     def procedures(self, procedure=None, catalog=None, schema=None):
         l_catalog = l_schema = l_procedure = 0
-        if catalog != None: l_catalog = len(catalog)
-        if schema != None: l_schema = len(schema)
-        if procedure != None: l_procedure = len(procedure)
-        
+        if catalog != None: 
+            l_catalog = len(catalog)
+            catalog = ctypes.c_char_p(catalog)
+        if schema != None: 
+            l_schema = len(schema)
+            schema = ctypes.c_char_p(schema)
+        if procedure != None: 
+            l_procedure = len(procedure)
+            procedure = ctypes.c_char_p(procedure)
+            
         ret = ODBC_API.SQLProcedures(self._stmt_h,
                             catalog, l_catalog,
                             schema, l_schema,
@@ -1344,9 +1370,16 @@ class Cursor:
     def statistics(self, table, catalog=None, schema=None, unique=False, quick=True):
         l_table = l_catalog = l_schema = 0
     
-        if catalog != None: l_catalog = len(catalog)
-        if schema != None: l_schema = len(schema)
-        if table != None: l_table = len(table)
+        if catalog != None: 
+            l_catalog = len(catalog)
+            catalog = ctypes.c_char_p(catalog)
+        if schema != None: 
+            l_schema = len(schema)
+            schema = ctypes.c_char_p(schema)
+        if table != None: 
+            l_table = len(table)
+            table = ctypes.c_char_p(table)
+            
         if unique:
             Unique = SQL_INDEX_UNIQUE
         else:
