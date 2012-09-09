@@ -34,7 +34,7 @@ apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
 version = '0.8.3'
-
+lowercase=True
 SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
 
 #determin the size of Py_UNICODE
@@ -508,7 +508,16 @@ class OdbcGenericError(Exception):
     def __str__(self):
         return repr(self.value)
 
-class DatabaseError(Exception):
+
+
+class Error(Exception):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
+
+
+
+class DatabaseError(Error):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
@@ -544,10 +553,6 @@ class OperationalError(DatabaseError):
         self.args = (error_code, error_desc)
 
 
-class Error(Exception):
-    def __init__(self, error_code, error_desc):
-        self.value = (error_code, error_desc)
-        self.args = (error_code, error_desc)
 
 
 
@@ -630,7 +635,7 @@ def ctrl_err(ht, h, val_ret):
             break
         elif ret == SQL_INVALID_HANDLE:
             #The handle passed is an invalid handle
-            raise OdbcInvalidHandle, 'SQL_INVALID_HANDLE'
+            raise ProgrammingError('', 'SQL_INVALID_HANDLE')
         elif ret == SQL_SUCCESS:
             err_list.append((state.value, Message.value, NativeError.value))
             number_errors += 1
@@ -672,10 +677,10 @@ class ROW(list):
 def get_type(v):
     t = type(v)
     if t == str:
-        if len(v) > 255:
+        if len(v) >= 255:
             t = 's'
     if t == unicode:
-        if len(v) > 255:
+        if len(v) >= 255:
             t = 'u'
     return t
 
@@ -723,7 +728,7 @@ class Cursor:
             params = None
             
         execute_many_mode = kargs.get('execute_many_mode',False)
-
+        self.free_results('FREE_STATEMENT')
 
         if params != None:
             # If parameters exist, first prepare the query then executed with parameters
@@ -843,6 +848,7 @@ class Cursor:
         self.NumOfRows()
         self._UpdateDesc()
         #self._BindCols()
+        self.statement = None
         return (self)
         
     
@@ -1123,8 +1129,10 @@ class Cursor:
                 ADDR(Ctype_code),ADDR(Csize),ADDR(Cprecision), ADDR(Cnull_ok))
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             
-            
-            ColDescr.append((Cname.value, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
+            col_name = Cname.value
+            if lowercase:
+                col_name = str.lower(col_name)
+            ColDescr.append((col_name, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
                 Csize.value,Cprecision.value, None,Cnull_ok.value == 1 and True or False))
             self._ColTypeCodeList.append(Ctype_code.value)
         self.description = ColDescr
