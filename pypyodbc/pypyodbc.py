@@ -785,7 +785,7 @@ class Cursor:
                 elif type(param_val) in (unicode, 'u'):
                     c_char_buf = param_val
                     
-                elif type(param_val) == bytearray:
+                elif type(param_val) in (bytearray,buffer):
                     c_char_buf = str(param_val)
                     c_buf_len = len(c_char_buf)
                     
@@ -984,7 +984,7 @@ class Cursor:
 
                 
     
-            elif param_types[col_num] == bytearray:
+            elif param_types[col_num] in (bytearray, buffer):
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
                 buf_size = 128000 #100kB
@@ -1026,6 +1026,8 @@ class Cursor:
             col_name = self.description[col_num][0]
             col_type_code = self._ColTypeCodeList[col_num]
             
+            total_buf_len = 5120
+            '''
             total_buf_len = self.description[col_num][2] + 1
             
             # WCHAR types store data in dobule length buffers
@@ -1033,9 +1035,9 @@ class Cursor:
                 total_buf_len *= 2
                  
             # if it's a long data col_num, we enlarge the buffer to predefined length.
-            if total_buf_len > 1280 or total_buf_len < 0: #1MB
-                total_buf_len = 1280
-                
+            if total_buf_len > 2048 or total_buf_len < 0: #1MB
+                total_buf_len = 2048
+            '''
 
             alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
 
@@ -1075,11 +1077,14 @@ class Cursor:
                             blocks.append(alloc_buffer.value)
                     break                    
                 
-                else: #SQL_SUCCESS_WITH_INFO
+                if ret == SQL_SUCCESS_WITH_INFO:
                     if target_type == SQL_C_BINARY:
                         blocks.append(alloc_buffer.raw)
                     else:
-                        blocks.append(alloc_buffer.value)               
+                        blocks.append(alloc_buffer.value)  
+     
+                if ret == SQL_NO_DATA:
+                    break
 
                 
             if len(blocks) == 1:
@@ -1512,7 +1517,7 @@ class Connection:
         # Convert the connetsytring to encoded string
         # so it can be converted to a ctypes c_char array object 
         self.connectString = connectString
-        if type(self.connectString) == unicode:
+        if not ansi:
             c_connectString = ctypes.c_wchar_p(self.connectString)
             ret = ODBC_API.SQLDriverConnectW(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
         else:
