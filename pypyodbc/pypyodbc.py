@@ -35,6 +35,11 @@ paramstyle = 'qmark'
 threadsafety = 1
 version = '0.8.3'
 
+SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
+
+#determin the size of Py_UNICODE
+#sys.maxunicode > 65536 and 'UCS4' or 'UCS2'
+UNICODE_SIZE = sys.maxunicode > 65536 and 4 or 2 
 
 
 # Define ODBC constants. They are widly used in ODBC documents and programs
@@ -704,11 +709,22 @@ class Cursor:
     
     
     
-    def execute(self, query_string, params = None, execute_many_mode = False):
+    def execute(self, query_string, *args, **kargs):
         """ Execute the query string, with optional parameters.
         If parameters are provided, the query would first be prepared, then executed with parameters;
         If parameters are not provided, only th query sting, it would be executed directly 
         """
+        if len(args) > 0:
+            if len(args) == 1 and type(args[0]) in (tuple, list):
+                params = args[0]
+            else:
+                params = args
+        else:
+            params = None
+            
+        execute_many_mode = kargs.get('execute_many_mode',False)
+
+
         if params != None:
             # If parameters exist, first prepare the query then executed with parameters
             if not type(params) in (tuple, list):
@@ -777,7 +793,7 @@ class Cursor:
                     c_char_buf = param_val
             
     
-                if type(param_val) in (bytearray,):
+                if type(param_val) in (bytearray,buffer):
                     param_buffer.raw = c_char_buf
                     
                 else:
@@ -1017,8 +1033,8 @@ class Cursor:
                 total_buf_len *= 2
                  
             # if it's a long data col_num, we enlarge the buffer to predefined length.
-            if total_buf_len > 2048 or total_buf_len < 0: #1MB
-                total_buf_len = 2048
+            if total_buf_len > 1280 or total_buf_len < 0: #1MB
+                total_buf_len = 1280
                 
 
             alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
