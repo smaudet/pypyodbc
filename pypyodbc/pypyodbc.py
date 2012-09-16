@@ -139,8 +139,8 @@ SQL_TYPE_NULL       : (None,                lambda x: None,             SQL_C_CH
 SQL_CHAR            : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer),
 SQL_NUMERIC         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer),
 SQL_DECIMAL         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer),
-SQL_INTEGER         : (int,                 long,                       SQL_C_LONG,         lambda x:ctypes.c_long()),
-SQL_SMALLINT        : (int,                 long,                       SQL_C_SHORT,        lambda x:ctypes.c_short()),
+SQL_INTEGER         : (int,                 int,                        SQL_C_LONG,         lambda x:ctypes.c_long()),
+SQL_SMALLINT        : (int,                 int,                        SQL_C_SHORT,        lambda x:ctypes.c_short()),
 SQL_FLOAT           : (float,               float,                      SQL_C_FLOAT,        lambda x:ctypes.c_float()),
 SQL_REAL            : (float,               float,                      SQL_C_FLOAT,        lambda x:ctypes.c_float()),
 SQL_DOUBLE          : (float,               float,                      SQL_C_DOUBLE,       lambda x:ctypes.c_double()),
@@ -152,8 +152,8 @@ SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CH
 SQL_BINARY          : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
 SQL_VARBINARY       : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
 SQL_LONGVARBINARY   : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
-SQL_BIGINT          : (int,                 long,                       SQL_C_LONG,         lambda x:ctypes.c_long()),
-SQL_TINYINT         : (int,                 long,                       SQL_C_TINYINT,      lambda x:ctypes.c_short()),
+SQL_BIGINT          : (long,                long,                       SQL_C_LONG,         lambda x:ctypes.c_long()),
+SQL_TINYINT         : (int,                 int,                        SQL_C_TINYINT,      lambda x:ctypes.c_short()),
 SQL_BIT             : (bool,                bool,                       SQL_C_BIT,          lambda x:ctypes.c_short()),
 SQL_WCHAR           : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
 SQL_WVARCHAR        : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
@@ -466,9 +466,20 @@ SQL_USER_NAME : 'GI_STRING',
 SQL_XOPEN_CLI_YEAR : 'GI_STRING',
 }
 
+'''
+struct tagSQL_NUMERIC_STRUCT {
+   SQLCHAR ;
+   SQLSCHAR scale;
+   SQLCHAR sign[g];
+   SQLCHAR val[SQL_MAX_NUMERIC_LEN];[e], [f] 
+} SQL_NUMERIC_STRUCT;
 
-
-
+class c_SQL_NUMERIC_STRUCT(ctypes.Structure):
+    _fields_ = [("precision", c_int),
+                ("scale", c_int),
+                ("sign")
+                ]
+'''
 
 
 BINARY = bytearray
@@ -675,6 +686,7 @@ class ROW(list):
 
 
 def get_type(v):
+
     t = type(v)
     if t == str:
         if len(v) >= 255:
@@ -682,6 +694,13 @@ def get_type(v):
     if t == unicode:
         if len(v) >= 255:
             t = 'u'
+    if t == Decimal:
+        sv = str(v).replace('-','').lstrip('0').split('.')
+        if len(sv)>1:
+            t = (len(sv[0])+len(sv[1]),len(sv[1]))
+        else:
+            t = (len(sv[0]),0)
+        
     return t
 
 
@@ -782,7 +801,8 @@ class Cursor:
                     
                     
                 elif type(param_val) == Decimal:
-                    c_char_buf = float(param_val)
+                    c_char_buf = str(param_val)
+                    c_buf_len = len(c_char_buf)
                     
                 elif type(param_val) in (str, 's'):
                     c_char_buf = param_val
@@ -803,6 +823,7 @@ class Cursor:
                     
                 else:
                     param_buffer.value = c_char_buf
+                    
                     
                 if type(param_val) not in (unicode,str,'u','s'):
                     #ODBC driver will find NUL in unicode and string to determine their length
@@ -891,9 +912,16 @@ class Cursor:
             prec = 0
             buf_size = 512
         
-            if param_types[col_num] in (int, long):
-                sql_c_type = SQL_C_LONG             
+            if param_types[col_num] in (int,):
+                sql_c_type = SQL_C_LONG            
                 sql_type = SQL_INTEGER
+                self._inputsizers.append(buf_size)
+                ParameterBuffer = ctypes.c_long()
+            
+                
+            elif param_types[col_num] in (long,):
+                sql_c_type = SQL_C_LONG           
+                sql_type = SQL_BIGINT
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.c_long()
                 
@@ -905,12 +933,14 @@ class Cursor:
                 ParameterBuffer = ctypes.c_double()
                 
                 
-            elif param_types[col_num] == Decimal:
-                sql_c_type = SQL_C_DOUBLE
-                sql_type = SQL_DOUBLE
+            elif type(param_types[col_num]) == tuple: #Decimal
+                sql_c_type = SQL_C_CHAR
+                sql_type = SQL_NUMERIC
+                buf_size = param_types[col_num][0]
                 self._inputsizers.append(buf_size)
-                ParameterBuffer = ctypes.c_double()
-                
+                ParameterBuffer = create_buffer(buf_size+4)
+                prec = param_types[col_num][1]
+                if DEBUG: print param_types[col_num][0],param_types[col_num][1]
                 
             elif param_types[col_num] == datetime.datetime:
                 sql_c_type = SQL_C_CHAR
@@ -1081,6 +1111,7 @@ class Cursor:
                             blocks.append(alloc_buffer.raw[:used_buf_len.value])
                         else:
                             blocks.append(alloc_buffer.value)
+
                     break                    
                 
                 if ret == SQL_SUCCESS_WITH_INFO:
@@ -1104,6 +1135,7 @@ class Cursor:
                 value_list.append(buf_cvt_func(raw_value))
             setattr(value_list,col_name,value_list[-1])
             col_num += 1
+        value_list.cursor_description = self.description
         return value_list
         
         
