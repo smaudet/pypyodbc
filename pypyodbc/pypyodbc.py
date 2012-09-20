@@ -1721,7 +1721,7 @@ def dataSources():
     desc = create_buffer(1024)
     dsn_len = ctypes.c_int()
     desc_len = ctypes.c_int()
-    dsn_list = []
+    dsn_list = {}
     
     while 1:
         ret = ODBC_API.SQLDataSources(shared_env_h, SQL_FETCH_NEXT, \
@@ -1731,5 +1731,5 @@ def dataSources():
         elif not ret in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO):
             ctrl_err(SQL_HANDLE_ENV, shared_env_h, ret)
         else:
-            dsn_list.append((dsn.value, desc.value))
+            dsn_list[dsn.value] = desc.value
     return dsn_list
