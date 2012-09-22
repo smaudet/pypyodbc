@@ -90,24 +90,29 @@ SQL_BIGINT = -5
 SQL_WVARCHAR = -9
 SQL_WLONGVARCHAR = -10
 SQL_ALL_TYPES = 0
+SQL_SIGNED_OFFSET = -20
+
+
 
 SQL_C_CHAR =            SQL_CHAR =          1
 SQL_C_NUMERIC =         SQL_NUMERIC =       2
 SQL_C_LONG =            SQL_INTEGER =       4
+SQL_C_SLONG =           SQL_C_LONG + SQL_SIGNED_OFFSET
 SQL_C_SHORT =           SQL_SMALLINT =      5
 SQL_C_FLOAT =           SQL_REAL =          7
 SQL_C_DOUBLE =          SQL_DOUBLE =        8
 SQL_C_TYPE_DATE =       SQL_TYPE_DATE =     91
 SQL_C_TYPE_TIME =       SQL_TYPE_TIME =     92
 SQL_C_BINARY =          SQL_BINARY =        -2
+SQL_C_SBIGINT =         SQL_BIGINT + SQL_SIGNED_OFFSET        
 SQL_C_TINYINT =         SQL_TINYINT =       -6
 SQL_C_BIT =             SQL_BIT =           -7
 SQL_C_WCHAR =           SQL_WCHAR =         -8
 SQL_C_TYPE_TIMESTAMP =  SQL_TYPE_TIMESTAMP = 93
 
 SQL_DESC_DISPLAY_SIZE = SQL_COLUMN_DISPLAY_SIZE
-SQL_SIGNED_OFFSET = -20
-SQL_C_SLONG = SQL_C_LONG + SQL_SIGNED_OFFSET
+
+
 
 def dttm_cvt(x):
     if x == '': return None
@@ -154,7 +159,7 @@ SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CH
 SQL_BINARY          : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
 SQL_VARBINARY       : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
 SQL_LONGVARBINARY   : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
-SQL_BIGINT          : (long,                long,                       SQL_C_LONG,         lambda x:ctypes.c_longlong()),
+SQL_BIGINT          : (long,                long,                       SQL_C_SBIGINT,         lambda x:ctypes.c_longlong()),
 SQL_TINYINT         : (int,                 int,                        SQL_C_TINYINT,      lambda x:ctypes.c_short()),
 SQL_BIT             : (bool,                bool,                       SQL_C_BIT,          lambda x:ctypes.c_short()),
 SQL_WCHAR           : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
@@ -683,7 +688,7 @@ def get_type(v):
         if len(v) >= 255:
             t = 'u'
     if t == Decimal:
-        sv = str(v).replace('-','').lstrip('0').split('.')
+        sv = str(v).replace('-','').strip('0').split('.')
         if len(sv)>1:
             t = (len(sv[0])+len(sv[1]),len(sv[1]))
         else:
@@ -811,7 +816,7 @@ class Cursor:
                     
                 else:
                     param_buffer.value = c_char_buf
-                    #print param_buffer.value
+                    #print param_buffer, param_buffer.value
                     
                 if type(param_val) not in (unicode,str,'u','s'):
                     #ODBC driver will find NUL in unicode and string to determine their length
@@ -908,7 +913,7 @@ class Cursor:
             
                 
             elif param_types[col_num] in (long,):
-                sql_c_type = SQL_C_LONG           
+                sql_c_type = SQL_C_SBIGINT           
                 sql_type = SQL_BIGINT
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = ctypes.c_longlong()
@@ -1095,6 +1100,7 @@ class Cursor:
                         if target_type == SQL_C_BINARY:
                             blocks.append(alloc_buffer.raw[:used_buf_len.value])
                         else:
+                            #print alloc_buffer
                             blocks.append(alloc_buffer.value)
 
                     break                    
