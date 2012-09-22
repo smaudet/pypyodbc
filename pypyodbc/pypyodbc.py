@@ -29,7 +29,8 @@ DEBUG = 0
 # Comment out all "if DEBUG:" statements like below for production
 if DEBUG: print 'DEBUGGING'
 
-
+pooling = True
+shared_env_h = None
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
@@ -47,6 +48,8 @@ UNICODE_SIZE = sys.maxunicode > 65536 and 4 or 2
 # and you can get these files from the mingw32-runtime_3.13-1_all.deb package
 SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC2, SQL_OV_ODBC3 = 200, 2, 3
 SQL_DRIVER_NOPROMPT = 0
+SQL_ATTR_CONNECTION_POOLING = 201; SQL_CP_ONE_PER_HENV = 2
+
 SQL_FETCH_NEXT, SQL_FETCH_FIRST, SQL_FETCH_LAST = 0x01, 0x02, 0x04
 SQL_NULL_HANDLE, SQL_HANDLE_ENV, SQL_HANDLE_DBC, SQL_HANDLE_STMT = 0, 1, 2, 3
 SQL_SUCCESS, SQL_SUCCESS_WITH_INFO = 0, 1
@@ -325,9 +328,6 @@ SQL_XOPEN_CLI_YEAR = 10000
 
 
 
-
-
-
 aInfoTypes = {
 SQL_ACCESSIBLE_PROCEDURES : 'GI_YESNO',
 SQL_ACCESSIBLE_TABLES : 'GI_YESNO',
@@ -491,8 +491,6 @@ BinaryNull = BinaryNullType()
 
 
 
-
-
 #Define exceptions
 class OdbcNoLibrary(Exception):
     def __init__(self, value):
@@ -546,6 +544,8 @@ class IntegrityError(DatabaseError):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
+
+
 
 class NotSupportedError(Exception):
     def __init__(self, error_code, error_desc):
@@ -653,24 +653,29 @@ def validate(ret, handle_type, handle):
     if ret not in (SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_NO_DATA):
         ctrl_err(handle_type, handle, ret)
             
+            
+def AllocateEnv():
+    if pooling:
+
+        ret = ODBC_API.SQLSetEnvAttr(SQL_NULL_HANDLE, SQL_ATTR_CONNECTION_POOLING, SQL_CP_ONE_PER_HENV, SQL_IS_UINTEGER)
+        validate(ret, SQL_HANDLE_ENV, SQL_NULL_HANDLE)
 
 
-''' 
-Allocate an ODBC environment by initializing the handle shared_env_h
-ODBC enviroment needed to be created, so connections can be created under it
-connections pooling can be shared under one environment
-'''
-shared_env_h = ctypes.c_int()
-ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, ADDR(shared_env_h))
-validate(ret, SQL_HANDLE_ENV, shared_env_h)
+    ''' 
+    Allocate an ODBC environment by initializing the handle shared_env_h
+    ODBC enviroment needed to be created, so connections can be created under it
+    connections pooling can be shared under one environment
+    '''
+    global shared_env_h 
+    shared_env_h  = ctypes.c_int()
+    ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, ADDR(shared_env_h))
+    validate(ret, SQL_HANDLE_ENV, shared_env_h)
 
-# Set the ODBC environment's compatibil leve to ODBC 3.0
-ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 0)
-validate(ret, SQL_HANDLE_ENV, shared_env_h)
-
-
-
-
+    # Set the ODBC environment's compatibil leve to ODBC 3.0
+    ret = ODBC_API.SQLSetEnvAttr(shared_env_h, SQL_ATTR_ODBC_VERSION, SQL_OV_ODBC3, 0)
+    validate(ret, SQL_HANDLE_ENV, shared_env_h)
+    
+    
 
 
 
@@ -1563,6 +1568,9 @@ class Connection:
         # This DBC handle is actually the basis of a "connection"
         # The handle of self.dbc_h will be used to connect to a certain source 
         # in the self.connect and self.ConnectByDSN method
+        
+        if shared_env_h == None:
+            AllocateEnv()
         
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_DBC, shared_env_h, ADDR(self.dbc_h))
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
