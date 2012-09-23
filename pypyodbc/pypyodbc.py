@@ -462,7 +462,11 @@ SQL_XOPEN_CLI_YEAR : 'GI_STRING',
 
 #Definations for types
 BINARY = bytearray
+Binary = bytearray
 DATETIME = datetime.datetime
+Date = datetime.date
+Time = datetime.time
+Timestamp = datetime.datetime
 STRING = str
 NUMBER = float
 ROWID = int
@@ -691,6 +695,7 @@ class Cursor:
         self._ColTypeCodeList = []
         self._outputsize = {}
         self._inputsizers = []
+        self.arraysize = 1
         self.setoutputsize(512000) #512KB as the defalt buffer size for large column
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self.connection.dbc_h, ADDR(self._stmt_h))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
@@ -1146,7 +1151,11 @@ class Cursor:
             ColDescr.append((col_name, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
                 Csize.value,Ccol_sizeision.value, None,Cnull_ok.value == 1 and True or False))
             self._ColTypeCodeList.append(Ctype_code.value)
-        self.description = ColDescr
+        
+        if len(ColDescr) > 0:
+            self.description = ColDescr
+        else:
+            self.description = None
         self._CreateColBuf()
     
     def NumOfRows(self):
@@ -1176,7 +1185,9 @@ class Cursor:
         return rows
 
 
-    def fetchmany(self, num):
+    def fetchmany(self, num = None):
+        if num == None:
+            num = self.arraysize
         rows, row_num = [], 0
         
         while row_num < num:
@@ -1739,7 +1750,8 @@ def dataSources():
     dsn_len = ctypes.c_int()
     desc_len = ctypes.c_int()
     dsn_list = {}
-    
+    if shared_env_h == None:
+        AllocateEnv()
     while 1:
         ret = ODBC_API.SQLDataSources(shared_env_h, SQL_FETCH_NEXT, \
             dsn, len(dsn), ADDR(dsn_len), desc, len(desc), ADDR(desc_len))
