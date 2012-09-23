@@ -34,7 +34,7 @@ shared_env_h = None
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.8.5'
+version = '0.8.6'
 lowercase=True
 SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
 
