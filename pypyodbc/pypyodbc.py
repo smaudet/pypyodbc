@@ -566,19 +566,24 @@ funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCo
 
 for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
 
-# Set the alias for the ctypes functions for beter code readbility or performance.
-ADDR = ctypes.byref
-SQLFetch = ODBC_API.SQLFetch
-SQLFetch.argtypes = [ctypes.c_int]
-SQLExecute = ODBC_API.SQLExecute
-SQLExecute.argtypes = [ctypes.c_int]
-SQLBindParameter = ODBC_API.SQLBindParameter
 
+ODBC_API.SQLFetch.argtypes = [ctypes.c_int]
+ODBC_API.SQLExecute.argtypes = [ctypes.c_int]
 ODBC_API.SQLPrepare.argtypes = [ctypes.c_int,ctypes.c_char_p,ctypes.c_int]
 ODBC_API.SQLPrepareW.argtypes = [ctypes.c_int,ctypes.c_wchar_p,ctypes.c_int]
 ODBC_API.SQLExecDirect.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
 ODBC_API.SQLExecDirectW.argtypes = [ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int]
 ODBC_API.SQLTables.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+
+# Set the alias for the ctypes functions for beter code readbility or performance.
+ADDR = ctypes.byref
+SQLFetch = ODBC_API.SQLFetch
+SQLExecute = ODBC_API.SQLExecute
+SQLBindParameter = ODBC_API.SQLBindParameter
+
+
+
+
 
 def ctrl_err(ht, h, val_ret):
     """Classify type of ODBC error from (type of handle, handle, return value)
@@ -854,6 +859,7 @@ class Cursor:
         for params in params_list:
             self.execute(query_string, params, execute_many_mode = True)
         self.NumOfRows()
+        self.rowcount = -1
         self._UpdateDesc()
         #self._BindCols()
 
@@ -1616,6 +1622,10 @@ class Connection:
         
     def cursor(self): 
         #self.settimeout(self.timeout)
+        if not self.connected:
+            raise ProgrammingError('HY000','Attempt to use a closed connection.')
+        
+        
         return Cursor(self)   
 
     def update_type_size_info(self):
@@ -1651,10 +1661,18 @@ class Connection:
 
     
     def commit(self):
+        if not self.connected:
+            raise ProgrammingError('HY000','Attempt to use a closed connection.')
+        
+        
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_COMMIT);
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
 
     def rollback(self):
+        if not self.connected:
+            raise ProgrammingError('HY000','Attempt to use a closed connection.')
+        
+        
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_ROLLBACK);
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
         
@@ -1706,6 +1724,10 @@ class Connection:
             self.close()
         
     def close(self):
+        if not self.connected:
+            raise ProgrammingError('HY000','Attempt to close a closed connection.')
+        
+        
         if self.connected:
             if DEBUG: print 'disconnect'
             if not self.autocommit:
