@@ -34,7 +34,7 @@ shared_env_h = None
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.8.6'
+version = '0.8.6a'
 lowercase=True
 SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
 
@@ -722,7 +722,7 @@ class Cursor:
             params = None
             
         execute_many_mode = kargs.get('execute_many_mode',False)
-        self.free_results('FREE_STATEMENT')
+        self._free_results('FREE_STATEMENT')
 
         if params != None:
             # If parameters exist, first prepare the query then executed with parameters
@@ -811,10 +811,10 @@ class Cursor:
                     param_buffer_len.value = c_buf_len
     
                 col_num += 1
-            self.SQLExecute()
+            self._SQLExecute()
 
             if not execute_many_mode:
-                self.NumOfRows()
+                self._NumOfRows()
                 self._UpdateDesc()
                 #self._BindCols()
             
@@ -823,7 +823,7 @@ class Cursor:
         return (self)
     
     
-    def SQLExecute(self):
+    def _SQLExecute(self):
         ret = SQLExecute(self._stmt_h)
         if ret != SQL_SUCCESS:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
@@ -847,7 +847,7 @@ class Cursor:
         else:
             ret = ODBC_API.SQLExecDirect(self._stmt_h, query_string, len(query_string))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
-        self.NumOfRows()
+        self._NumOfRows()
         self._UpdateDesc()
         #self._BindCols()
         self.statement = None
@@ -858,7 +858,7 @@ class Cursor:
         self.prepare(query_string)
         for params in params_list:
             self.execute(query_string, params, execute_many_mode = True)
-        self.NumOfRows()
+        self._NumOfRows()
         self.rowcount = -1
         self._UpdateDesc()
         #self._BindCols()
@@ -1047,7 +1047,7 @@ class Cursor:
     
 
     def _CreateColBuf(self):
-        NOC = self.NumOfCols()
+        NOC = self._NumOfCols()
         self._ColBufferList = []
         for col_num in range(NOC):
             col_name = self.description[col_num][0]
@@ -1141,7 +1141,7 @@ class Cursor:
         Cnull_ok = ctypes.c_int()
         ColDescr = []
         self._ColTypeCodeList = []
-        NOC = self.NumOfCols()
+        NOC = self._NumOfCols()
         for col in range(1, NOC+1):
             ret = ODBC_API.SQLColAttribute(self._stmt_h, col, SQL_DESC_DISPLAY_SIZE, ADDR(create_buffer(10)), 
                 10, ADDR(ctypes.c_int()),ADDR(Cdisp_size))
@@ -1164,7 +1164,7 @@ class Cursor:
             self.description = None
         self._CreateColBuf()
     
-    def NumOfRows(self):
+    def _NumOfRows(self):
         """Get the number of rows"""
         NOR = ctypes.c_int()
         ret = ODBC_API.SQLRowCount(self._stmt_h, ADDR(NOR))
@@ -1173,7 +1173,7 @@ class Cursor:
         return self.rowcount    
 
     
-    def NumOfCols(self):
+    def _NumOfCols(self):
         """Get the number of cols"""
         NOC = ctypes.c_int()
         ret = ODBC_API.SQLNumResultCols(self._stmt_h, ADDR(NOC))
@@ -1231,16 +1231,16 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             
         if ret == SQL_NO_DATA:
-            self.free_results('FREE_STATEMENT')
+            self._free_results('FREE_STATEMENT')
             return False
         else:
-            self.NumOfRows()
+            self._NumOfRows()
             self._UpdateDesc()
             #self._BindCols()
         return True
     
     
-    def free_results(self, free_statement):
+    def _free_results(self, free_statement):
         if not self.connection.connected:
             raise ProgrammingError('HY000','Attempt to use a closed connection.')
         
@@ -1267,7 +1267,7 @@ class Cursor:
         ret = ODBC_API.SQLGetTypeInfo(self._stmt_h, type)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
     
-        self.NumOfRows()
+        self._NumOfRows()
         self._UpdateDesc()
         #self._BindCols()
         return (self)
@@ -1293,7 +1293,7 @@ class Cursor:
             l_tableType = len(tableType)
             tableType = ctypes.c_char_p(tableType)
         
-        self.free_results('FREE_STATEMENT')
+        self._free_results('FREE_STATEMENT')
         self.statement = None
         ret = ODBC_API.SQLTables(self._stmt_h,
                                 catalog, l_catalog,
@@ -1302,7 +1302,7 @@ class Cursor:
                                 tableType, l_tableType)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
     
-        self.NumOfRows()
+        self._NumOfRows()
         self._UpdateDesc()
         #self._BindCols()
         return (self)
@@ -1324,7 +1324,7 @@ class Cursor:
             l_column = len(column)
             column = ctypes.c_char_p(column)
             
-        self.free_results('FREE_STATEMENT')
+        self._free_results('FREE_STATEMENT')
         self.statement = None
             
         ret = ODBC_API.SQLColumns(self._stmt_h,
@@ -1334,7 +1334,7 @@ class Cursor:
                             column, l_column)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
 
-        self.NumOfRows()
+        self._NumOfRows()
         self._UpdateDesc()
         #self._BindCols()
         return (self)
@@ -1354,7 +1354,7 @@ class Cursor:
             l_table = len(table)
             table = ctypes.c_char_p(table)
             
-        self.free_results('FREE_STATEMENT')
+        self._free_results('FREE_STATEMENT')
         self.statement = None
             
         ret = ODBC_API.SQLPrimaryKeys(self._stmt_h,
@@ -1363,7 +1363,7 @@ class Cursor:
                             table, l_table)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
-        self.NumOfRows()
+        self._NumOfRows()
         self._UpdateDesc()
         #self._BindCols()
         return (self)
@@ -1390,7 +1390,7 @@ class Cursor:
             l_foreignSchema = len(foreignSchema)
             foreignSchema = ctypes.c_char_p(foreignSchema)
         
-        self.free_results('FREE_STATEMENT')
+        self._free_results('FREE_STATEMENT')
         self.statement = None
         
         ret = ODBC_API.SQLForeignKeys(self._stmt_h,
@@ -1402,7 +1402,7 @@ class Cursor:
                             foreignTable, l_foreignTable)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
-        self.NumOfRows()
+        self._NumOfRows()
         self._UpdateDesc()
         #self._BindCols()
         return (self)
@@ -1421,7 +1421,7 @@ class Cursor:
             procedure = ctypes.c_char_p(procedure)
             
         
-        self.free_results('FREE_STATEMENT')
+        self._free_results('FREE_STATEMENT')
         self.statement = None
             
         ret = ODBC_API.SQLProcedures(self._stmt_h,
@@ -1430,7 +1430,7 @@ class Cursor:
                             procedure, l_procedure)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         
-        self.NumOfRows()
+        self._NumOfRows()
         self._UpdateDesc()
         #self._BindCols()
         return (self)
@@ -1458,7 +1458,7 @@ class Cursor:
         else:
             Reserved = SQL_ENSURE
         
-        self.free_results('FREE_STATEMENT')
+        self._free_results('FREE_STATEMENT')
         self.statement = None
         
         ret = ODBC_API.SQLStatistics(self._stmt_h,
@@ -1468,7 +1468,7 @@ class Cursor:
                                 Unique, Reserved)
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
     
-        self.NumOfRows()
+        self._NumOfRows()
         self._UpdateDesc()
         #self._BindCols()
         return (self)
@@ -1525,16 +1525,20 @@ class Cursor:
 #
 
 class Connection:
-    def __init__(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False, readonly = False):
+    def __init__(self, connectString = '', autocommit = False, ansi = False, timeout = 0, unicode_results = False, readonly = False, **kargs):
         """Init variables and connect to the engine"""
         self.connected = 0
         self.type_size_dic = {}
         self.unicode_results = False
         self.dbc_h = ctypes.c_int()
-        self.autocommit = False
+        self.autocommit = autocommit
         self.readonly = False
         self.timeout = 0
-        
+
+        for key, value in kargs.items():
+            connectString = connectString + key + '=' + value + ';'
+        self.connectString = connectString
+
         if shared_env_h == None:
             #Initialize an enviroment if it is not created.
             AllocateEnv()
@@ -1551,7 +1555,7 @@ class Connection:
         
             
      
-    def connect(self, connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False, readonly = False):
+    def connect(self, connectString = '', autocommit = False, ansi = False, timeout = 0, unicode_results = False, readonly = False):
         """Connect to odbc, using connect strings and set the connection's attributes like autocommit and timeout
         by calling SQLSetConnectAttr
         """ 
@@ -1569,7 +1573,9 @@ class Connection:
 
         # Convert the connetsytring to encoded string
         # so it can be converted to a ctypes c_char array object 
-        self.connectString = connectString
+
+        
+        
         if not ansi:
             c_connectString = ctypes.c_wchar_p(self.connectString)
             ret = ODBC_API.SQLDriverConnectW(self.dbc_h, 0, c_connectString, len(self.connectString), 0, 0, 0, SQL_DRIVER_NOPROMPT)
@@ -1583,7 +1589,11 @@ class Connection:
         #
         self.autocommit = autocommit
         
-        ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_AUTOCOMMIT, self.autocommit and SQL_AUTOCOMMIT_ON or SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER)
+        if self.autocommit == True:
+            ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_AUTOCOMMIT, SQL_AUTOCOMMIT_ON, SQL_IS_UINTEGER)
+        else:
+            ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER)
+    
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
        
         # Set the connection's attribute of "readonly" 
@@ -1746,11 +1756,11 @@ class Connection:
 odbc = Connection
 
 
-
-def connect(connectString, autocommit = False, ansi = False, timeout = 0, unicode_results = False, readonly = False):
-    return odbc(connectString, autocommit, ansi, timeout, unicode_results, readonly)
-
-
+'''
+def connect(connectString = '', autocommit = False, ansi = False, timeout = 0, unicode_results = False, readonly = False, **kargs):
+    return odbc(connectString, autocommit, ansi, timeout, unicode_results, readonly, kargs)
+'''
+connect = odbc
 def win_create_mdb(mdb_path):
     #CREATE_DB=<path name> <sort order>
     c_Path = "CREATE_DB="+mdb_path+" General\0\0"
