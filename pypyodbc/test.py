@@ -245,10 +245,10 @@ if __name__ == "__main__":
         
         
     print pypyodbc.version    
-    mdb_path = cur_file_dir()+u'\\e.mdb'
+    mdb_path = unicode(cur_file_dir(),'mbcs')+'\\e.mdb'
     
     if hasattr(pypyodbc,'win_create_mdb') and sys.platform in ('win32','cli'):
-        pypyodbc.win_create_mdb('"'+mdb_path.encode('mbcs')+'"')
+        pypyodbc.win_create_mdb('"'+mdb_path+'"')
             
     database_strings = [\
         ('Access',
