@@ -34,7 +34,7 @@ shared_env_h = None
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.8.6a'
+version = '0.8.7a'
 lowercase=True
 SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
 
@@ -138,11 +138,11 @@ SQL_TYPE_NULL       : (None,                lambda x: None,             SQL_C_CH
 SQL_CHAR            : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer),
 SQL_NUMERIC         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer),
 SQL_DECIMAL         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer),
-SQL_INTEGER         : (int,                 int,                        SQL_C_LONG,         lambda x:ctypes.c_long()),
-SQL_SMALLINT        : (int,                 int,                        SQL_C_SHORT,        lambda x:ctypes.c_short()),
+SQL_INTEGER         : (int,                 int,                        SQL_C_CHAR,         create_buffer),
+SQL_SMALLINT        : (int,                 int,                        SQL_C_CHAR,         create_buffer),
 SQL_FLOAT           : (float,               float,                      SQL_C_CHAR,         create_buffer),
-SQL_REAL            : (float,               float,                      SQL_C_FLOAT,        lambda x:ctypes.c_float()),
-SQL_DOUBLE          : (float,               float,                      SQL_C_DOUBLE,       lambda x:ctypes.c_double()),
+SQL_REAL            : (float,               float,                      SQL_C_CHAR,         create_buffer),
+SQL_DOUBLE          : (float,               float,                      SQL_C_CHAR,         create_buffer),
 SQL_DATE            : (datetime.date,       dt_cvt,                     SQL_C_CHAR ,        create_buffer),
 SQL_TIME            : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer),
 SQL_TIMESTAMP       : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer),
@@ -151,9 +151,9 @@ SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CH
 SQL_BINARY          : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
 SQL_VARBINARY       : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
 SQL_LONGVARBINARY   : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
-SQL_BIGINT          : (long,                long,                       SQL_C_SBIGINT,      lambda x:ctypes.c_longlong()),
-SQL_TINYINT         : (int,                 int,                        SQL_C_TINYINT,      lambda x:ctypes.c_short()),
-SQL_BIT             : (bool,                lambda x: x == '1' and True or False,     SQL_C_CHAR,  lambda x:ctypes.c_char()),
+SQL_BIGINT          : (long,                long,                       SQL_C_CHAR,         create_buffer),
+SQL_TINYINT         : (int,                 int,                        SQL_C_CHAR,         create_buffer),
+SQL_BIT             : (bool,      lambda x:x=='1'and True or False,     SQL_C_CHAR,         create_buffer),
 SQL_WCHAR           : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
 SQL_WVARCHAR        : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
 SQL_GUID            : (str,                 str,                        SQL_C_CHAR,         create_buffer),
@@ -163,6 +163,8 @@ SQL_TYPE_TIME       : (datetime.time,       tm_cvt,                     SQL_C_CH
 SQL_TYPE_TIMESTAMP  : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer), 
 }
 
+
+    
 
 # Below defines The constants for sqlgetinfo method, and their coresponding return types
 SQL_QUALIFIER_LOCATION = 114
@@ -1074,7 +1076,7 @@ class Cursor:
                 target_type = SQL_C_WCHAR
                 alloc_buffer = create_buffer_u(total_buf_len)
             
-            buf_cvt_func = SqlTypes[self._ColTypeCodeList[col_num]][1]
+            buf_cvt_func = self.connection.output_converter[self._ColTypeCodeList[col_num]]
             
             self._ColBufferList.append([col_name, target_type, used_buf_len, alloc_buffer, total_buf_len, buf_cvt_func])     
         
@@ -1539,6 +1541,10 @@ class Connection:
             connectString = connectString + key + '=' + value + ';'
         self.connectString = connectString
 
+        
+        self.clear_output_converters()
+
+        
         if shared_env_h == None:
             #Initialize an enviroment if it is not created.
             AllocateEnv()
@@ -1606,6 +1612,15 @@ class Connection:
         self.unicode_results = unicode_results
         self.update_type_size_info()
         self.connected = 1
+        
+    def clear_output_converters(self):
+        self.output_converter = {}
+        for sqltype, profile in SqlTypes.items():
+            self.output_converter[sqltype] = profile[1]
+        
+        
+    def add_output_converter(self, sqltype, func):
+        self.output_converter[sqltype] = func
     
     def settimeout(self, timeout):
         ret = ODBC_API.SQLSetConnectAttr(self.dbc_h, SQL_ATTR_CONNECTION_TIMEOUT, timeout, SQL_IS_UINTEGER);
