@@ -476,6 +476,10 @@ Timestamp = datetime.datetime
 STRING = str
 NUMBER = float
 ROWID = int
+DateFromTicks = datetime.date.fromtimestamp
+TimeFromTicks = lambda x: datetime.datetime.fromtimestamp(x).time()
+TimestampFromTicks = datetime.datetime.fromtimestamp
+
 
 # When Null is used in a binary parameter, database usually would not
 # accept the None for a binary field, so the work around is to use a 
@@ -508,16 +512,35 @@ class OdbcGenericError(Exception):
         return repr(self.value)
 
 
-class Error(Exception):
+class Warning(StandardError):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
+    
+
+class Error(StandardError):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
+
+class InterfaceError(Error):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
+
 
 class DatabaseError(Error):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
+
     
+class InternalError(DatabaseError):
+    def __init__(self, error_code, error_desc):
+        self.value = (error_code, error_desc)
+        self.args = (error_code, error_desc)
+
+
 class ProgrammingError(DatabaseError):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
@@ -533,7 +556,7 @@ class IntegrityError(DatabaseError):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
 
-class NotSupportedError(Exception):
+class NotSupportedError(Error):
     def __init__(self, error_code, error_desc):
         self.value = (error_code, error_desc)
         self.args = (error_code, error_desc)
@@ -707,7 +730,6 @@ class Cursor:
         self._outputsize = {}
         self._inputsizers = []
         self.arraysize = 1
-        self.setoutputsize(512000) #512KB as the defalt buffer size for large column
         ret = ODBC_API.SQLAllocHandle(SQL_HANDLE_STMT, self.connection.dbc_h, ADDR(self._stmt_h))
         validate(ret, SQL_HANDLE_STMT, self._stmt_h)
         self.closed = False
@@ -758,7 +780,7 @@ class Cursor:
                     if len(datetime_str) == 19:
                         datetime_str += '.000'
                     c_char_buf = datetime_str[:c_buf_len]
-                    if DEBUG: print c_buf_len, c_char_buf
+                    # print c_buf_len, c_char_buf
                     
                 elif type(param_val) == datetime.date:
                     if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
@@ -778,7 +800,7 @@ class Cursor:
                         if len(time_str) == 8:
                             time_str += '.000'
                         c_char_buf = '1900-01-01 '+time_str[0:c_buf_len - 11]
-                    if DEBUG: print c_buf_len, c_char_buf
+                    #print c_buf_len, c_char_buf
                     
                 elif type(param_val) == bool:
                     if param_val == True:
@@ -898,7 +920,11 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             '''
             col_size = 0
+            
             buf_size = 512
+            
+            
+            
         
             if param_types[col_num] in (int,):
                 sql_c_type = SQL_C_LONG            
@@ -998,7 +1024,7 @@ class Cursor:
             elif param_types[col_num] == 'u':
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR 
-                buf_size = 128000 #100kB
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20480
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer_u(buf_size)
                 
@@ -1006,7 +1032,7 @@ class Cursor:
             elif param_types[col_num] == 's':
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = 128000 #100kB
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20480
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
                 
@@ -1014,7 +1040,7 @@ class Cursor:
             elif param_types[col_num] in (bytearray, buffer):
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
-                buf_size = 128000 #100kB
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20480
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
             
@@ -1029,7 +1055,7 @@ class Cursor:
             else:
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = 128000 #100kB
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20480
                 self._inputsizers.append(buf_size)
                 ParameterBuffer = create_buffer(buf_size)
                 
@@ -1056,18 +1082,18 @@ class Cursor:
         NOC = self._NumOfCols()
         self._ColBufferList = []
         for col_num in range(NOC):
-            col_name = self.description[col_num][0]
-            col_sql_data_type = self._ColTypeCodeList[col_num]
+            col_name = self.description[col_num][0]            
             
-            '''
-            total_buf_len = self.description[col_num][2] + 10
-            
-                 
-            # if it's a long data col_num, we enlarge the buffer to predefined length.
-            if total_buf_len > 2048 or total_buf_len < 0: 
-                total_buf_len = 2048
-            '''
-            total_buf_len = SQL_data_type_dict[col_sql_data_type][4]
+            col_sql_data_type = self._ColTypeCodeList[col_num]            
+
+            # set default size base on the column's sql data type
+            total_buf_len = SQL_data_type_dict[col_sql_data_type][4] 
+            # over-write if there's preset size value for "large columns"
+            if total_buf_len >= 20480: 
+                total_buf_len = self._outputsize.get(None,total_buf_len)
+            # over-write if there's preset size value for the "col_num" column 
+            total_buf_len = self._outputsize.get(col_num, total_buf_len)
+
 
             alloc_buffer = SQL_data_type_dict[col_sql_data_type][3](total_buf_len)
 
@@ -1489,6 +1515,9 @@ class Cursor:
     
     def setoutputsize(self, size, column = None):
         self._outputsize[column] = size
+    
+    def setinputsizes(self, sizes):
+        self._inputsizers = [size for size in sizes]
 
 
     def close(self):
