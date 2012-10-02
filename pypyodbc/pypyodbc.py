@@ -1783,16 +1783,16 @@ def connect(connectString = '', autocommit = False, ansi = False, timeout = 0, u
     return odbc(connectString, autocommit, ansi, timeout, unicode_results, readonly, kargs)
 '''
 
-def win_create_mdb(mdb_path, sort_order = " General\0\0"):
+def win_create_mdb(mdb_path, sort_order = "General\0\0"):
     #CREATE_DB=<path name> <sort order>
-    c_Path = "CREATE_DB=" + mdb_path + sort_order
+    c_Path = "CREATE_DB=" + mdb_path + " " + sort_order
     ODBC_ADD_SYS_DSN = 1
     ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
 
 
-def win_compact_mdb(mdb_path, compacted_mdb_path, sort_order = " General\0\0"):
+def win_compact_mdb(mdb_path, compacted_mdb_path, sort_order = "General\0\0"):
     #COMPACT_DB=<source path> <destination path> <sort order>
-    c_Path = "COMPACT_DB=" + mdb_path + " " + compacted_mdb_path + sort_order
+    c_Path = "COMPACT_DB=" + mdb_path + " " + compacted_mdb_path + " " + sort_order
     ODBC_ADD_SYS_DSN = 1
     ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
 
