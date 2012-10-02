@@ -131,36 +131,40 @@ def dt_cvt(x):
 create_buffer_u = ctypes.create_unicode_buffer
 create_buffer = ctypes.create_string_buffer
 
+
 # Below Datatype mappings referenced the document at
 # http://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.help.sdk_12.5.1.aseodbc/html/aseodbc/CACFDIGH.htm
-SqlTypes = { \
-SQL_TYPE_NULL       : (None,                lambda x: None,             SQL_C_CHAR,         create_buffer), 
-SQL_CHAR            : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer),
-SQL_NUMERIC         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer),
-SQL_DECIMAL         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer),
-SQL_INTEGER         : (int,                 int,                        SQL_C_CHAR,         create_buffer),
-SQL_SMALLINT        : (int,                 int,                        SQL_C_CHAR,         create_buffer),
-SQL_FLOAT           : (float,               float,                      SQL_C_CHAR,         create_buffer),
-SQL_REAL            : (float,               float,                      SQL_C_CHAR,         create_buffer),
-SQL_DOUBLE          : (float,               float,                      SQL_C_CHAR,         create_buffer),
-SQL_DATE            : (datetime.date,       dt_cvt,                     SQL_C_CHAR ,        create_buffer),
-SQL_TIME            : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer),
-SQL_TIMESTAMP       : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer),
-SQL_VARCHAR         : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer),
-SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer),
-SQL_BINARY          : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
-SQL_VARBINARY       : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
-SQL_LONGVARBINARY   : (bytearray,           lambda x: bytearray(x),     SQL_C_BINARY,       create_buffer),
-SQL_BIGINT          : (long,                long,                       SQL_C_CHAR,         create_buffer),
-SQL_TINYINT         : (int,                 int,                        SQL_C_CHAR,         create_buffer),
-SQL_BIT             : (bool,      lambda x:x=='1'and True or False,     SQL_C_CHAR,         create_buffer),
-SQL_WCHAR           : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
-SQL_WVARCHAR        : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
-SQL_GUID            : (str,                 str,                        SQL_C_CHAR,         create_buffer),
-SQL_WLONGVARCHAR    : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u),
-SQL_TYPE_DATE       : (datetime.date,       dt_cvt,                     SQL_C_CHAR,         create_buffer),
-SQL_TYPE_TIME       : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer),
-SQL_TYPE_TIMESTAMP  : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer), 
+
+
+SQL_data_type_dict = { \
+#SQL Data TYPE        0.Python Data Type     1.Default Output Converter  2.Buffer Type     3.Buffer Allocator   4.Default Buffer Size
+SQL_TYPE_NULL       : (None,                lambda x: None,             SQL_C_CHAR,         create_buffer,      2      ), 
+SQL_CHAR            : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
+SQL_NUMERIC         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer,      150    ),
+SQL_DECIMAL         : (Decimal,             Decimal,                    SQL_C_CHAR,         create_buffer,      150    ),
+SQL_INTEGER         : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
+SQL_SMALLINT        : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
+SQL_FLOAT           : (float,               float,                      SQL_C_CHAR,         create_buffer,      150    ),
+SQL_REAL            : (float,               float,                      SQL_C_CHAR,         create_buffer,      150    ),
+SQL_DOUBLE          : (float,               float,                      SQL_C_CHAR,         create_buffer,      200    ),
+SQL_DATE            : (datetime.date,       dt_cvt,                     SQL_C_CHAR ,        create_buffer,      30     ),
+SQL_TIME            : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
+SQL_TIMESTAMP       : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30     ),
+SQL_VARCHAR         : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
+SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      20480  ),
+SQL_BINARY          : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      5120   ),
+SQL_VARBINARY       : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      5120   ),
+SQL_LONGVARBINARY   : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      20480  ),
+SQL_BIGINT          : (long,                long,                       SQL_C_CHAR,         create_buffer,      150    ),
+SQL_TINYINT         : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
+SQL_BIT             : (bool,                lambda x:x=='1',            SQL_C_CHAR,         create_buffer,      2      ),
+SQL_WCHAR           : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    2048   ),
+SQL_WVARCHAR        : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    2048   ),
+SQL_GUID            : (str,                 str,                        SQL_C_CHAR,         create_buffer,      50     ),
+SQL_WLONGVARCHAR    : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    20480  ),
+SQL_TYPE_DATE       : (datetime.date,       dt_cvt,                     SQL_C_CHAR,         create_buffer,      30     ),
+SQL_TYPE_TIME       : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
+SQL_TYPE_TIMESTAMP  : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30      ), 
 }
 
 
@@ -1053,7 +1057,7 @@ class Cursor:
         self._ColBufferList = []
         for col_num in range(NOC):
             col_name = self.description[col_num][0]
-            col_type_code = self._ColTypeCodeList[col_num]
+            col_sql_data_type = self._ColTypeCodeList[col_num]
             
             '''
             total_buf_len = self.description[col_num][2] + 10
@@ -1063,16 +1067,16 @@ class Cursor:
             if total_buf_len > 2048 or total_buf_len < 0: 
                 total_buf_len = 2048
             '''
-            total_buf_len = 2049
+            total_buf_len = SQL_data_type_dict[col_sql_data_type][4]
 
-            alloc_buffer = SqlTypes[col_type_code][3](total_buf_len)
+            alloc_buffer = SQL_data_type_dict[col_sql_data_type][3](total_buf_len)
 
             used_buf_len = ctypes.c_long()
             
-            target_type = SqlTypes[col_type_code][2]
+            target_type = SQL_data_type_dict[col_sql_data_type][2]
             force_unicode = self.connection.unicode_results
     
-            if force_unicode and col_type_code in (SQL_CHAR,SQL_VARCHAR,SQL_LONGVARCHAR):
+            if force_unicode and col_sql_data_type in (SQL_CHAR,SQL_VARCHAR,SQL_LONGVARCHAR):
                 target_type = SQL_C_WCHAR
                 alloc_buffer = create_buffer_u(total_buf_len)
             
@@ -1156,7 +1160,7 @@ class Cursor:
             col_name = Cname.value
             if lowercase:
                 col_name = str.lower(col_name)
-            ColDescr.append((col_name, SqlTypes.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
+            ColDescr.append((col_name, SQL_data_type_dict.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
                 Csize.value,Ccol_sizeision.value, None,Cnull_ok.value == 1 and True or False))
             self._ColTypeCodeList.append(Ctype_code.value)
         
@@ -1165,6 +1169,7 @@ class Cursor:
         else:
             self.description = None
         self._CreateColBuf()
+    
     
     def _NumOfRows(self):
         """Get the number of rows"""
@@ -1486,8 +1491,6 @@ class Cursor:
         self._outputsize[column] = size
 
 
-
-
     def close(self):
         """ Call SQLCloseCursor API to free the statement handle"""
 #        ret = ODBC_API.SQLCloseCursor(self._stmt_h)
@@ -1615,7 +1618,7 @@ class Connection:
         
     def clear_output_converters(self):
         self.output_converter = {}
-        for sqltype, profile in SqlTypes.items():
+        for sqltype, profile in SQL_data_type_dict.items():
             self.output_converter[sqltype] = profile[1]
         
         
