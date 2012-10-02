@@ -1139,13 +1139,13 @@ class Cursor:
         
     
     def _UpdateDesc(self):
-        "Get the information of (name, type_code, display_size, internal_size, col_sizeision, scale, null_ok)"  
+        "Get the information of (name, type_code, display_size, internal_size, col_precision, scale, null_ok)"  
         Cname = create_buffer(1024)
         Cname_ptr = ctypes.c_int()
         Ctype_code = ctypes.c_short()
         Csize = ctypes.c_int()
         Cdisp_size = ctypes.c_int(0)
-        Ccol_sizeision = ctypes.c_int()
+        CDecimalDigits = ctypes.c_int()
         Cnull_ok = ctypes.c_int()
         ColDescr = []
         self._ColTypeCodeList = []
@@ -1156,14 +1156,16 @@ class Cursor:
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             
             ret = ODBC_API.SQLDescribeCol(self._stmt_h, col, ADDR(Cname), len(Cname), ADDR(Cname_ptr),\
-                ADDR(Ctype_code),ADDR(Csize),ADDR(Ccol_sizeision), ADDR(Cnull_ok))
+                ADDR(Ctype_code),ADDR(Csize),ADDR(CDecimalDigits), ADDR(Cnull_ok))
             validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             
             col_name = Cname.value
             if lowercase:
                 col_name = str.lower(col_name)
+            #(name, type_code, display_size, 
+            #   internal_size, col_precision, scale, null_ok)
             ColDescr.append((col_name, SQL_data_type_dict.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
-                Csize.value,Ccol_sizeision.value, None,Cnull_ok.value == 1 and True or False))
+                Csize.value, Csize.value,CDecimalDigits.value,Cnull_ok.value == 1 and True or False))
             self._ColTypeCodeList.append(Ctype_code.value)
         
         if len(ColDescr) > 0:
