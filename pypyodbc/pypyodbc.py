@@ -1225,6 +1225,15 @@ class Cursor:
                 return None
             else:
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+    
+    def next(self):
+        row = self.fetchone()
+        if row == None:
+            raise(StopIteration)
+        return row
+    
+    def __iter__(self):
+        return self
 
     
     def skip(self, count = 0):
