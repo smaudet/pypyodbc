@@ -151,17 +151,17 @@ SQL_DATE            : (datetime.date,       dt_cvt,                     SQL_C_CH
 SQL_TIME            : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
 SQL_TIMESTAMP       : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30     ),
 SQL_VARCHAR         : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
-SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      30720  ),
+SQL_LONGVARCHAR     : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      20500  ),
 SQL_BINARY          : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      5120   ),
 SQL_VARBINARY       : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      5120   ),
-SQL_LONGVARBINARY   : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      30720  ),
+SQL_LONGVARBINARY   : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      20500  ),
 SQL_BIGINT          : (long,                long,                       SQL_C_CHAR,         create_buffer,      150    ),
 SQL_TINYINT         : (int,                 int,                        SQL_C_CHAR,         create_buffer,      150    ),
 SQL_BIT             : (bool,                lambda x:x=='1',            SQL_C_CHAR,         create_buffer,      2      ),
 SQL_WCHAR           : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    2048   ),
 SQL_WVARCHAR        : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    2048   ),
 SQL_GUID            : (str,                 str,                        SQL_C_CHAR,         create_buffer,      50     ),
-SQL_WLONGVARCHAR    : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    30720  ),
+SQL_WLONGVARCHAR    : (unicode,             lambda x: x,                SQL_C_WCHAR,        create_buffer_u,    20500  ),
 SQL_TYPE_DATE       : (datetime.date,       dt_cvt,                     SQL_C_CHAR,         create_buffer,      30     ),
 SQL_TYPE_TIME       : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
 SQL_TYPE_TIMESTAMP  : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30      ), 
@@ -1006,20 +1006,20 @@ class Cursor:
             elif param_types[col_num] == 'u':
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WLONGVARCHAR 
-                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 30720                
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
                 ParameterBuffer = create_buffer_u(buf_size)                
                     
             elif param_types[col_num] == 's':
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 30720                
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
                 ParameterBuffer = create_buffer(buf_size)
                 
     
             elif param_types[col_num] in (bytearray, buffer):
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
-                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 30720                
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
                 ParameterBuffer = create_buffer(buf_size)
             
             
@@ -1032,7 +1032,7 @@ class Cursor:
             else:
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_LONGVARCHAR
-                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 30720                
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
                 ParameterBuffer = create_buffer(buf_size)
                 
             BufferLen = ctypes.c_long(buf_size)
@@ -1065,7 +1065,7 @@ class Cursor:
             # set default size base on the column's sql data type
             total_buf_len = SQL_data_type_dict[col_sql_data_type][4] 
             # over-write if there's preset size value for "large columns"
-            if total_buf_len >= 30720: 
+            if total_buf_len >= 20500: 
                 total_buf_len = self._outputsize.get(None,total_buf_len)
             # over-write if there's preset size value for the "col_num" column 
             total_buf_len = self._outputsize.get(col_num, total_buf_len)
@@ -1540,7 +1540,19 @@ class Cursor:
                 if DEBUG: print 'succeed'
                 pass
     
-        
+    def __exit__(self, type, value, traceback):
+        if value:
+            self.rollback()
+        else:
+            self.commit()
+            
+        self.close()
+    
+            
+    def __enter__(self):
+        return self
+
+    
 # This class implement a odbc connection. 
 #
 #
@@ -1761,7 +1773,18 @@ class Connection:
                     
         return result
         
-
+    def __exit__(self, type, value, traceback):
+        if value:
+            self.rollback()
+        else:
+            self.commit()
+            
+        if self.connected:
+            self.close()
+    
+            
+    def __enter__(self):
+        return self
 
     def __del__(self):
         if self.connected:
