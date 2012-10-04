@@ -691,7 +691,7 @@ class Cursor:
             
             # With query prepared, now put parameters into buffers
             col_num = 0
-            for param_buffer, param_buffer_len in self._ParamBufferList:
+            for param_buffer, param_buffer_len, sql_type in self._ParamBufferList:
                 c_char_buf, c_buf_len = '', 0
                 param_val = params[col_num]
                 if param_val in (None,BinaryNull):
@@ -732,14 +732,14 @@ class Cursor:
                         c_char_buf = '0'
                     c_buf_len = 1
                     
-                elif type(param_val) in (float, Decimal):
+                elif type(param_val) in (int, long, float, Decimal):
                     c_char_buf = str(param_val)
                     c_buf_len = len(c_char_buf)
                     
-                elif type(param_val) in (str, 's'):
+                elif type(param_val) in (str,):
                     c_char_buf = param_val
                     
-                elif type(param_val) in (unicode, 'u'):
+                elif type(param_val) in (unicode,):
                     c_char_buf = param_val
                     
                 elif type(param_val) in (bytearray,buffer):
@@ -817,9 +817,17 @@ class Cursor:
         call_escape += '}'
         print call_escape
         self.execute(call_escape, args, call_mode = True)
-        for p in self._ParamBufferList:
-            for f in p:
-                print f.value, type(f.value)
+        
+        result = []
+        print (self._ParamBufferList)
+        print 'bbb'
+        for buf, buf_len, sql_type in self._ParamBufferList:
+            if buf_len.value == -1:
+                result.append(None)
+            else:
+                result.append(self.connection.output_converter[sql_type](buf.value))
+        return (result)
+            
                 
     
     def executemany(self, query_string, params_list = [None]):
@@ -863,25 +871,29 @@ class Cursor:
             buf_size = 512
         
             if param_types[col_num] in (int,):
-                sql_c_type = SQL_C_LONG            
-                sql_type = SQL_INTEGER                
-                ParameterBuffer = ctypes.c_long()            
+                sql_c_type = SQL_C_CHAR            
+                sql_type = SQL_INTEGER    
+                buf_size = SQL_data_type_dict[sql_type][4]             
+                ParameterBuffer = create_buffer(buf_size)           
                 
             elif param_types[col_num] in (long,):
-                sql_c_type = SQL_C_SBIGINT           
-                sql_type = SQL_BIGINT                
-                ParameterBuffer = ctypes.c_longlong()
+                sql_c_type = SQL_C_CHAR           
+                sql_type = SQL_BIGINT         
+                buf_size = SQL_data_type_dict[sql_type][4]         
+                ParameterBuffer = create_buffer(buf_size)
                 
                 
             elif param_types[col_num] == float:
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_DOUBLE                
+                buf_size = SQL_data_type_dict[sql_type][4]  
                 ParameterBuffer = create_buffer(buf_size)
                 
             elif param_types[col_num] == bool:
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_BIT                
-                ParameterBuffer = ctypes.c_char()
+                buf_size = SQL_data_type_dict[sql_type][4]  
+                ParameterBuffer = create_buffer(buf_size)
                 
                 
             elif type(param_types[col_num]) == tuple: #Decimal
@@ -987,7 +999,7 @@ class Cursor:
             if ret != SQL_SUCCESS:    
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             # Append the value buffer and the lenth buffer to the array
-            ParamBufferList.append((ParameterBuffer,LenOrIndBuf))
+            ParamBufferList.append((ParameterBuffer,LenOrIndBuf,sql_type))
                 
         self._last_param_types = param_types
         self._ParamBufferList = ParamBufferList
