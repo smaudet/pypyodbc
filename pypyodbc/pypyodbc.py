@@ -69,8 +69,7 @@ SQL_QUICK,SQL_ENSURE = 0,1
 SQL_FETCH_NEXT = 1
 SQL_COLUMN_DISPLAY_SIZE = 6
 SQL_INVALID_HANDLE = -2
-SQL_NO_DATA_FOUND = 100
-SQL_NULL_DATA = -1
+SQL_NO_DATA_FOUND = 100; SQL_NULL_DATA = -1; SQL_NTS = -3
 SQL_HANDLE_DESCR = 4
 SQL_TABLE_NAMES = 3
 SQL_PARAM_INPUT = 1
@@ -738,10 +737,10 @@ class Cursor:
                     
                 elif type(param_val) in (str,):
                     c_char_buf = param_val
-                    
+                    c_buf_len = len(c_char_buf)
                 elif type(param_val) in (unicode,):
                     c_char_buf = param_val
-                    
+                    c_buf_len = len(c_char_buf)
                 elif type(param_val) in (bytearray,buffer):
                     c_char_buf = str(param_val)
                     c_buf_len = len(c_char_buf)
@@ -757,8 +756,10 @@ class Cursor:
                     param_buffer.value = c_char_buf
                     #print param_buffer, param_buffer.value
                     
-                if type(param_val) not in (unicode,str,'u','s'):
+                if type(param_val) in (unicode,str,'u','s'):
                     #ODBC driver will find NUL in unicode and string to determine their length
+                    param_buffer_len.value = SQL_NTS
+                else:
                     param_buffer_len.value = c_buf_len
     
                 col_num += 1
@@ -815,12 +816,11 @@ class Cursor:
         if args:
             call_escape += '(' + ','.join(['?' for params in args]) + ')'
         call_escape += '}'
-        print call_escape
+
         self.execute(call_escape, args, call_mode = True)
         
         result = []
-        print (self._ParamBufferList)
-        print 'bbb'
+
         for buf, buf_len, sql_type in self._ParamBufferList:
             if buf_len.value == -1:
                 result.append(None)
@@ -990,12 +990,9 @@ class Cursor:
             BufferLen = ctypes.c_long(buf_size)
             LenOrIndBuf = ctypes.c_long()
                 
-            if param_types[col_num] in (unicode,str,'u','s'):
-                ret = SQLBindParameter(self._stmt_h, col_num + 1, InputOutputType, sql_c_type, sql_type, buf_size,\
-                        col_size, ADDR(ParameterBuffer), BufferLen,None)
-            else:
-                ret = SQLBindParameter(self._stmt_h, col_num + 1, InputOutputType, sql_c_type, sql_type, buf_size,\
-                        col_size, ADDR(ParameterBuffer), BufferLen,ADDR(LenOrIndBuf))
+
+            ret = SQLBindParameter(self._stmt_h, col_num + 1, InputOutputType, sql_c_type, sql_type, buf_size,\
+                    col_size, ADDR(ParameterBuffer), BufferLen,ADDR(LenOrIndBuf))
             if ret != SQL_SUCCESS:    
                 validate(ret, SQL_HANDLE_STMT, self._stmt_h)
             # Append the value buffer and the lenth buffer to the array
@@ -1733,7 +1730,6 @@ class Connection:
             
         if self.connected:
             self.close()
-    
             
     def __enter__(self):
         return self
