@@ -57,8 +57,7 @@ SQL_NO_DATA = 100; SQL_NO_TOTAL = -4
 SQL_ATTR_ACCESS_MODE = SQL_ACCESS_MODE = 101
 SQL_ATTR_AUTOCOMMIT = SQL_AUTOCOMMIT = 102
 
-SQL_MODE_DEFAULT = SQL_MODE_READ_WRITE = 0
-SQL_MODE_READ_ONLY = 1
+SQL_MODE_DEFAULT = SQL_MODE_READ_WRITE = 0; SQL_MODE_READ_ONLY = 1
 SQL_AUTOCOMMIT_OFF, SQL_AUTOCOMMIT_ON = 0, 1
 SQL_IS_UINTEGER = -5
 SQL_ATTR_LOGIN_TIMEOUT = 103; SQL_ATTR_CONNECTION_TIMEOUT = 113
@@ -72,8 +71,13 @@ SQL_INVALID_HANDLE = -2
 SQL_NO_DATA_FOUND = 100; SQL_NULL_DATA = -1; SQL_NTS = -3
 SQL_HANDLE_DESCR = 4
 SQL_TABLE_NAMES = 3
-SQL_PARAM_INPUT = 1
-SQL_PARAM_INPUT_OUTPUT = 2
+SQL_PARAM_INPUT = 1; SQL_PARAM_INPUT_OUTPUT = 2
+SQL_PARAM_TYPE_UNKNOWN = 0
+SQL_RESULT_COL = 3
+SQL_PARAM_OUTPUT = 4
+SQL_RETURN_VALUE = 5
+SQL_PARAM_TYPE_DEFAULT = SQL_PARAM_INPUT_OUTPUT
+
 SQL_RESET_PARAMS = 3
 SQL_UNBIND = 2
 SQL_CLOSE = 0
@@ -505,7 +509,7 @@ funcs_with_ret = ["SQLNumParams","SQLBindParameter","SQLExecute","SQLNumResultCo
         "SQLFetch","SQLBindCol","SQLCloseCursor","SQLSetConnectAttr","SQLDriverConnect","SQLDriverConnectW",
         "SQLConnect","SQLTables","SQLStatistics","SQLFetchScroll","SQLMoreResults","SQLGetInfo","SQLGetData",
         "SQLDataSources","SQLFreeHandle","SQLFreeStmt","SQLDisconnect","SQLEndTran","SQLPrepare","SQLPrepareW",
-        "SQLDescribeParam","SQLGetTypeInfo","SQLPrimaryKeys","SQLForeignKeys","SQLProcedures"]
+        "SQLDescribeParam","SQLGetTypeInfo","SQLPrimaryKeys","SQLForeignKeys","SQLProcedures","SQLProcedureColumns"]
 
 for func_name in funcs_with_ret: getattr(ODBC_API,func_name).restype = ctypes.c_short
 
@@ -682,7 +686,7 @@ class Cursor:
             param_types = map(get_type, params)
 
             if callproc_mode:
-                self._BindParams(param_types, SQL_PARAM_INPUT_OUTPUT)
+                self._BindParams(param_types, self._pram_io_list)
             else:
                 if param_types != self._last_param_types:
                     self._BindParams(param_types)
@@ -812,6 +816,13 @@ class Cursor:
         
         
     def callproc(self, procname, args):
+        
+        self._pram_io_list = [row[4] for row in self.procedurecolumns(procedure = procname).fetchall() if row[4] not in (SQL_RESULT_COL, SQL_RETURN_VALUE)]
+        
+        print 'pram_io_list: '+str(self._pram_io_list)
+
+        
+        
         call_escape = '{CALL '+procname
         if args:
             call_escape += '(' + ','.join(['?' for params in args]) + ')'
@@ -840,7 +851,7 @@ class Cursor:
         #self._BindCols()
 
 
-    def _BindParams(self, param_types, InputOutputType = SQL_PARAM_INPUT):
+    def _BindParams(self, param_types, pram_io_list = []):
         """Create parameter buffers based on param types, and bind them to the statement"""
         # Get the number of query parameters judged by database.
         NumParams = ctypes.c_int()
@@ -990,6 +1001,10 @@ class Cursor:
             BufferLen = ctypes.c_long(buf_size)
             LenOrIndBuf = ctypes.c_long()
                 
+            
+            InputOutputType = SQL_PARAM_INPUT
+            if len(pram_io_list) > col_num:
+                InputOutputType = pram_io_list[col_num]
 
             ret = SQLBindParameter(self._stmt_h, col_num + 1, InputOutputType, sql_c_type, sql_type, buf_size,\
                     col_size, ADDR(ParameterBuffer), BufferLen,ADDR(LenOrIndBuf))
@@ -1377,6 +1392,37 @@ class Cursor:
         return (self)
     
     
+    def procedurecolumns(self, procedure=None, catalog=None, schema=None, column=None):
+        l_catalog = l_schema = l_procedure = l_column = 0
+        if catalog != None: 
+            l_catalog = len(catalog)
+            catalog = ctypes.c_char_p(catalog)
+        if schema != None: 
+            l_schema = len(schema)
+            schema = ctypes.c_char_p(schema)
+        if procedure != None: 
+            l_procedure = len(procedure)
+            procedure = ctypes.c_char_p(procedure)
+        if column != None: 
+            l_column = len(column)
+            column = ctypes.c_char_p(column)
+            
+        
+        self._free_results('FREE_STATEMENT')
+        self.statement = None
+            
+        ret = ODBC_API.SQLProcedureColumns(self._stmt_h,
+                            catalog, l_catalog,
+                            schema, l_schema,
+                            procedure, l_procedure,
+                            column, l_column)
+        validate(ret, SQL_HANDLE_STMT, self._stmt_h)
+        
+        self._NumOfRows()
+        self._UpdateDesc()
+        return (self)
+        
+    
     def procedures(self, procedure=None, catalog=None, schema=None):
         l_catalog = l_schema = l_procedure = 0
         if catalog != None: 
@@ -1401,7 +1447,6 @@ class Cursor:
         
         self._NumOfRows()
         self._UpdateDesc()
-        #self._BindCols()
         return (self)
 
 
@@ -1669,14 +1714,12 @@ class Connection:
         if not self.connected:
             raise ProgrammingError('HY000','Attempt to use a closed connection.')
         
-        
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_COMMIT);
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
 
     def rollback(self):
         if not self.connected:
             raise ProgrammingError('HY000','Attempt to use a closed connection.')
-        
         
         ret = ODBC_API.SQLEndTran(SQL_HANDLE_DBC, self.dbc_h, SQL_ROLLBACK);
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
