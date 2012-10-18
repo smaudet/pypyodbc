@@ -8,7 +8,7 @@ def main():
         source_to_test = [
         'Access',
         'SQLServer',
-        'MySQL',
+        #'MySQL',
         'PostgreSQL'
         ]
         if database_name in source_to_test:

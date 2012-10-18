@@ -34,7 +34,7 @@ shared_env_h = None
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.8.7a'
+version = '0.8.7'
 lowercase=True
 SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
 
@@ -816,7 +816,7 @@ class Cursor:
         
         
     def callproc(self, procname, args):
-        
+        raise Warning('', 'Still not fully implemented')
         self._pram_io_list = [row[4] for row in self.procedurecolumns(procedure = procname).fetchall() if row[4] not in (SQL_RESULT_COL, SQL_RETURN_VALUE)]
         
         print 'pram_io_list: '+str(self._pram_io_list)
