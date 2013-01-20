@@ -1,8 +1,14 @@
+import sys
+if len(sys.argv) == 1:
+    sys.argv.append('install')
+
 from setuptools import setup
+
+
 
 setup(
     name='pypyodbc',
-    version='0.9.1',
+    version='0.9.2',
     description='A Pure Python ctypes ODBC module',
     author='jiangwen365',
     author_email='jiangwen365@gmail.com',
