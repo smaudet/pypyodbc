@@ -2301,16 +2301,20 @@ def win_create_mdb(mdb_path, sort_order = "General\0\0"):
     ctypes.windll.ODBCCP32.SQLConfigDataSource.argtypes = [ctypes.c_void_p,ctypes.c_ushort,ctypes.c_char_p,ctypes.c_char_p]
     c_Path = "CREATE_DB=" + mdb_path + " " + sort_order
     ODBC_ADD_SYS_DSN = 1
-    ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
-
+    ret = ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
+    if not ret:
+        raise Exception('Failed to create Access mdb file. Please check file path, permission and Access driver readiness.')
+    
 
 def win_compact_mdb(mdb_path, compacted_mdb_path, sort_order = "General\0\0"):
     #COMPACT_DB=<source path> <destination path> <sort order>
     c_Path = "COMPACT_DB=" + mdb_path + " " + compacted_mdb_path + " " + sort_order
     ODBC_ADD_SYS_DSN = 1
     ctypes.windll.ODBCCP32.SQLConfigDataSource.argtypes = [ctypes.c_void_p,ctypes.c_ushort,ctypes.c_char_p,ctypes.c_char_p]
-    ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
-
+    ret = ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
+    if not ret:
+        raise Exception('Failed to compact Access mdb file. Please check file path, permission and Access driver readiness.')
+    
 
 def dataSources():
     """Return a list with [name, descrition]"""
