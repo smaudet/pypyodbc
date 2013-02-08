@@ -18,8 +18,6 @@
 # CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
 # DEALINGS IN THE SOFTWARE.
 
-from __future__ import with_statement
-
 import sys, os, datetime, ctypes, threading
 from decimal import Decimal
 
@@ -47,7 +45,7 @@ shared_env_h = None
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '0.9.1'
+version = '0.9.3'
 lowercase=True
 SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_wchar)
 
@@ -460,16 +458,31 @@ if sys.platform in ('win32','cli'):
     # On Windows, the size of SQLWCHAR is hardcoded to 2-bytes.
     SQLWCHAR_SIZE = ctypes.sizeof(ctypes.c_ushort)
 else:
-    # Set the library location on linux 
-    lib_paths = ("/usr/lib/libodbc.so","/usr/lib/i386-linux-gnu/libodbc.so","/usr/lib/x86_64-linux-gnu/libodbc.so")
-    lib_paths = [path for path in lib_paths if os.path.exists(path)]
-    if len(lib_paths) == 0 :
-        raise OdbcNoLibrary, 'ODBC Library is not found'
-    library = lib_paths[0]
+    # Set load the library on linux 
     try:
-        ODBC_API = ctypes.cdll.LoadLibrary(library)
+        # First try direct loading libodbc.so
+        ODBC_API = ctypes.cdll.LoadLibrary('libodbc.so')
     except:
-        raise OdbcLibraryError, 'Error while loading %s' % library
+        # If direct loading libodbc.so failed
+        # We try finding the libodbc.so by using find_library
+        from ctypes.util import find_library
+        library = find_library('odbc')
+        if library is None:
+            # If find_library still can not find the library
+            # we try finding it manually from where libodbc.so usually appears
+            lib_paths = ("/usr/lib/libodbc.so","/usr/lib/i386-linux-gnu/libodbc.so","/usr/lib/x86_64-linux-gnu/libodbc.so")
+            lib_paths = [path for path in lib_paths if os.path.exists(path)]
+            if len(lib_paths) == 0 :
+                raise OdbcNoLibrary, 'ODBC Library is not found'
+            else:
+                library = lib_paths[0]
+
+        # Then we try loading the found libodbc.so again
+        try:
+            ODBC_API = ctypes.cdll.LoadLibrary(library)
+        except:
+            # If still fail loading, abort.
+            raise OdbcLibraryError, 'Error while loading %s' % library
 
     # unixODBC defaults to 2-bytes SQLWCHAR, unless "-DSQL_WCHART_CONVERT" was
     # added to CFLAGS, in which case it will be the size of wchar_t.
@@ -1080,13 +1093,13 @@ def MutableNamedTupleRow(cursor):
 # against the changed parameter types
 def get_type(v):
     t = type(v)
-    if t == str:
+    if isinstance(v, str):
         if len(v) >= 255:
             t = 's'
-    if t == unicode:
+    elif isinstance(v, unicode):
         if len(v) >= 255:
             t = 'u'
-    if t == Decimal:
+    elif isinstance(v, Decimal):
         sv = str(v).replace('-','').strip('0').split('.')
         if len(sv)>1:
             t = (len(sv[0])+len(sv[1]),len(sv[1]))
@@ -1159,14 +1172,14 @@ class Cursor:
                 if param_val is None:
                     c_buf_len = SQL_NULL_DATA
                     
-                elif type(param_val) == datetime.datetime:
+                elif isinstance(param_val, datetime.datetime):
                     max_len = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]
                     datetime_str = param_val.strftime('%Y-%m-%d %H:%M:%S.%f')
                     c_char_buf = datetime_str[:max_len]
                     c_buf_len = len(c_char_buf)
                     # print c_buf_len, c_char_buf
                     
-                elif type(param_val) == datetime.date:
+                elif isinstance(param_val, datetime.date):
                     if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
                         max_len = self.connection.type_size_dic[SQL_TYPE_DATE][0]
                     else:
@@ -1175,7 +1188,7 @@ class Cursor:
                     c_buf_len = len(c_char_buf)
                     #print c_char_buf
                     
-                elif type(param_val) == datetime.time:
+                elif isinstance(param_val, datetime.time):
                     if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
                         max_len = self.connection.type_size_dic[SQL_TYPE_TIME][0]
                         c_char_buf = param_val.isoformat()[:max_len]
@@ -1192,24 +1205,24 @@ class Cursor:
                         c_char_buf = '1900-01-01 '+time_str[0:c_buf_len - 11]
                     #print c_buf_len, c_char_buf
                     
-                elif type(param_val) == bool:
+                elif isinstance(param_val, bool):
                     if param_val == True:
                         c_char_buf = '1'
                     else:
                         c_char_buf = '0'
                     c_buf_len = 1
                     
-                elif type(param_val) in (int, long, float, Decimal):
+                elif isinstance(param_val, (int, long, float, Decimal)):
                     c_char_buf = str(param_val)
                     c_buf_len = len(c_char_buf)
                     
-                elif type(param_val) in (str,):
+                elif isinstance(param_val, str):
                     c_char_buf = param_val
                     c_buf_len = len(c_char_buf)
-                elif type(param_val) in (unicode,):
+                elif isinstance(param_val, unicode):
                     c_char_buf = to_unicode(param_val)
                     c_buf_len = len(c_char_buf)
-                elif type(param_val) in (bytearray,buffer):
+                elif isinstance(param_val, (bytearray, buffer)):
                     c_char_buf = str(param_val)
                     c_buf_len = len(c_char_buf)
                     
@@ -1217,14 +1230,14 @@ class Cursor:
                     c_char_buf = param_val
             
     
-                if type(param_val) in (bytearray,buffer):
+                if isinstance(param_val, (bytearray, buffer)):
                     param_buffer.raw = c_char_buf
                     
                 else:
                     param_buffer.value = c_char_buf
                     #print param_buffer, param_buffer.value
                     
-                if type(param_val) in (unicode,str,'u','s'):
+                if isinstance(param_val, (unicode, str)):
                     #ODBC driver will find NUL in unicode and string to determine their length
                     param_buffer_len.value = SQL_NTS
                 else:
@@ -1365,42 +1378,56 @@ class Cursor:
                 buf_size = 1
                 ParameterBuffer = create_buffer(buf_size)
 
-            elif param_types[col_num] in (int,):
+            elif param_types[col_num] == 'u':
+                sql_c_type = SQL_C_WCHAR
+                sql_type = SQL_WLONGVARCHAR
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500
+                ParameterBuffer = create_buffer_u(buf_size)
+
+            elif param_types[col_num] == 's':
+                sql_c_type = SQL_C_CHAR
+                sql_type = SQL_LONGVARCHAR
+                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500
+                ParameterBuffer = create_buffer(buf_size)
+
+            elif type(param_types[col_num]) == tuple: #Decimal
+                sql_c_type = SQL_C_CHAR
+                sql_type = SQL_NUMERIC
+                buf_size = param_types[col_num][0]
+
+                ParameterBuffer = create_buffer(buf_size+4)
+                col_size = param_types[col_num][1]
+                if DEBUG: print param_types[col_num][0],param_types[col_num][1]
+
+            # bool subclasses int, thus has to go first
+            elif issubclass(param_types[col_num], bool):
+                sql_c_type = SQL_C_CHAR
+                sql_type = SQL_BIT
+                buf_size = SQL_data_type_dict[sql_type][4]
+                ParameterBuffer = create_buffer(buf_size)
+
+            elif issubclass(param_types[col_num], int):
                 sql_c_type = SQL_C_CHAR            
                 sql_type = SQL_INTEGER    
                 buf_size = SQL_data_type_dict[sql_type][4]             
                 ParameterBuffer = create_buffer(buf_size)           
                 
-            elif param_types[col_num] in (long,):
+            elif issubclass(param_types[col_num], long):
                 sql_c_type = SQL_C_CHAR           
                 sql_type = SQL_BIGINT         
                 buf_size = SQL_data_type_dict[sql_type][4]         
                 ParameterBuffer = create_buffer(buf_size)
                 
                 
-            elif param_types[col_num] == float:
+            elif issubclass(param_types[col_num], float):
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_DOUBLE                
                 buf_size = SQL_data_type_dict[sql_type][4]  
                 ParameterBuffer = create_buffer(buf_size)
                 
-            elif param_types[col_num] == bool:
-                sql_c_type = SQL_C_CHAR
-                sql_type = SQL_BIT                
-                buf_size = SQL_data_type_dict[sql_type][4]  
-                ParameterBuffer = create_buffer(buf_size)
                 
-                
-            elif type(param_types[col_num]) == tuple: #Decimal
-                sql_c_type = SQL_C_CHAR
-                sql_type = SQL_NUMERIC
-                buf_size = param_types[col_num][0]
-                
-                ParameterBuffer = create_buffer(buf_size+4)
-                col_size = param_types[col_num][1]
-                if DEBUG: print param_types[col_num][0],param_types[col_num][1]
-                
-            elif param_types[col_num] == datetime.datetime:
+            # datetime subclasses date, thus has to go first
+            elif issubclass(param_types[col_num], datetime.datetime):
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_TYPE_TIMESTAMP
                 buf_size = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][0]                
@@ -1408,7 +1435,7 @@ class Cursor:
                 col_size = self.connection.type_size_dic[SQL_TYPE_TIMESTAMP][1]
                 
                 
-            elif param_types[col_num] == datetime.date:
+            elif issubclass(param_types[col_num], datetime.date):
                 sql_c_type = SQL_C_CHAR
                 if self.connection.type_size_dic.has_key(SQL_TYPE_DATE):
                     if DEBUG: print 'conx.type_size_dic.has_key(SQL_TYPE_DATE)'
@@ -1425,7 +1452,7 @@ class Cursor:
                     ParameterBuffer = create_buffer(buf_size)
                     
     
-            elif param_types[col_num] == datetime.time:
+            elif issubclass(param_types[col_num], datetime.time):
                 sql_c_type = SQL_C_CHAR
                 if self.connection.type_size_dic.has_key(SQL_TYPE_TIME):
                     sql_type = SQL_TYPE_TIME
@@ -1445,32 +1472,19 @@ class Cursor:
                     ParameterBuffer = create_buffer(buf_size)
                     col_size = 3
                     
-            elif param_types[col_num] == unicode:
+            elif issubclass(param_types[col_num], unicode):
                 sql_c_type = SQL_C_WCHAR
                 sql_type = SQL_WVARCHAR 
                 buf_size = 255                 
                 ParameterBuffer = create_buffer_u(buf_size)                
                     
-            elif param_types[col_num] == str:
+            elif issubclass(param_types[col_num], str):
                 sql_c_type = SQL_C_CHAR
                 sql_type = SQL_VARCHAR
                 buf_size = 255                 
                 ParameterBuffer = create_buffer(buf_size)
 
-            elif param_types[col_num] == 'u':
-                sql_c_type = SQL_C_WCHAR
-                sql_type = SQL_WLONGVARCHAR 
-                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
-                ParameterBuffer = create_buffer_u(buf_size)                
-                    
-            elif param_types[col_num] == 's':
-                sql_c_type = SQL_C_CHAR
-                sql_type = SQL_LONGVARCHAR
-                buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
-                ParameterBuffer = create_buffer(buf_size)
-                
-    
-            elif param_types[col_num] in (bytearray, buffer):
+            elif issubclass(param_types[col_num], (bytearray, buffer)):
                 sql_c_type = SQL_C_BINARY
                 sql_type = SQL_LONGVARBINARY 
                 buf_size = len(self._inputsizers)>col_num and self._inputsizers[col_num] or 20500                
@@ -2061,11 +2075,14 @@ class Connection:
         
         self.clear_output_converters()
 
-        with lock:
+        try:
+            lock.acquire()
             if shared_env_h == None:
                 #Initialize an enviroment if it is not created.
                 AllocateEnv()
-            
+        finally:
+            lock.release()
+        
         # Allocate an DBC handle self.dbc_h under the environment shared_env_h
         # This DBC handle is actually the basis of a "connection"
         # The handle of self.dbc_h will be used to connect to a certain source 
@@ -2115,8 +2132,11 @@ class Connection:
         # less likely to happen if ODBC Tracing is enabled, likely due to the
         # implicit serialization caused by writing to trace file.
         if ODBC_API._name != 'odbc32':
-            with lock:
+            try:
+                lock.acquire()
                 ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), None, 0, None, SQL_DRIVER_NOPROMPT)
+            finally:
+                lock.release()
         else:
             ret = odbc_func(self.dbc_h, 0, c_connectString, len(self.connectString), None, 0, None, SQL_DRIVER_NOPROMPT)
         validate(ret, SQL_HANDLE_DBC, self.dbc_h)
@@ -2297,6 +2317,8 @@ def connect(connectString = '', autocommit = False, ansi = False, timeout = 0, u
 '''
 
 def win_create_mdb(mdb_path, sort_order = "General\0\0"):
+    if sys.platform not in ('win32','cli'):
+        raise Exception('This function is available for use in Windows only.')
     #CREATE_DB=<path name> <sort order>
     ctypes.windll.ODBCCP32.SQLConfigDataSource.argtypes = [ctypes.c_void_p,ctypes.c_ushort,ctypes.c_char_p,ctypes.c_char_p]
     c_Path = "CREATE_DB=" + mdb_path + " " + sort_order
@@ -2307,6 +2329,8 @@ def win_create_mdb(mdb_path, sort_order = "General\0\0"):
     
 
 def win_compact_mdb(mdb_path, compacted_mdb_path, sort_order = "General\0\0"):
+    if sys.platform not in ('win32','cli'):
+        raise Exception('This function is available for use in Windows only.')
     #COMPACT_DB=<source path> <destination path> <sort order>
     c_Path = "COMPACT_DB=" + mdb_path + " " + compacted_mdb_path + " " + sort_order
     ODBC_ADD_SYS_DSN = 1
@@ -2314,7 +2338,6 @@ def win_compact_mdb(mdb_path, compacted_mdb_path, sort_order = "General\0\0"):
     ret = ctypes.windll.ODBCCP32.SQLConfigDataSource(None,ODBC_ADD_SYS_DSN,"Microsoft Access Driver (*.mdb)", c_Path)
     if not ret:
         raise Exception('Failed to compact Access mdb file. Please check file path, permission and Access driver readiness.')
-    
 
 def dataSources():
     """Return a list with [name, descrition]"""
@@ -2323,9 +2346,12 @@ def dataSources():
     dsn_len = ctypes.c_short()
     desc_len = ctypes.c_short()
     dsn_list = {}
-    with lock:
+    try:
+        lock.acquire()
         if shared_env_h == None:
             AllocateEnv()
+    finally:
+        lock.release()
     while 1:
         ret = ODBC_API.SQLDataSources(shared_env_h, SQL_FETCH_NEXT, \
             dsn, len(dsn), ADDR(dsn_len), desc, len(desc), ADDR(desc_len))
