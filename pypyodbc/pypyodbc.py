@@ -22,7 +22,7 @@ pooling = True
 apilevel = '2.0'
 paramstyle = 'qmark'
 threadsafety = 1
-version = '1.0.1'
+version = '1.0.2'
 lowercase=True
 
 DEBUG = 0
@@ -122,6 +122,7 @@ SQL_WVARCHAR = -9
 SQL_WLONGVARCHAR = -10
 SQL_ALL_TYPES = 0
 SQL_SIGNED_OFFSET = -20
+SQL_SS_VARIANT = -150
 
 SQL_C_CHAR =            SQL_CHAR =          1
 SQL_C_NUMERIC =         SQL_NUMERIC =       2
@@ -594,6 +595,7 @@ SQL_WLONGVARCHAR    : (unicode,             lambda x: x,                SQL_C_WC
 SQL_TYPE_DATE       : (datetime.date,       dt_cvt,                     SQL_C_CHAR,         create_buffer,      30     ),
 SQL_TYPE_TIME       : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
 SQL_TYPE_TIMESTAMP  : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30      ), 
+SQL_SS_VARIANT      : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
 }
 
 
@@ -1703,8 +1705,8 @@ class Cursor:
             if lowercase:
                 col_name = col_name.lower()
             #(name, type_code, display_size, 
-            #   internal_size, col_precision, scale, null_ok)
-            ColDescr.append((col_name, SQL_data_type_dict.get(Ctype_code.value,(Ctype_code.value))[0],Cdisp_size.value,\
+
+            ColDescr.append((col_name, SQL_data_type_dict.get(Ctype_code.value,(Ctype_code.value,))[0],Cdisp_size.value,\
                 Csize.value, Csize.value,CDecimalDigits.value,Cnull_ok.value == 1 and True or False))
             self._ColTypeCodeList.append(Ctype_code.value)
         
