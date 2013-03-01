@@ -123,6 +123,8 @@ SQL_WLONGVARCHAR = -10
 SQL_ALL_TYPES = 0
 SQL_SIGNED_OFFSET = -20
 SQL_SS_VARIANT = -150
+SQL_SS_UDT = -151
+SQL_SS_TIME2 = -154
 
 SQL_C_CHAR =            SQL_CHAR =          1
 SQL_C_NUMERIC =         SQL_NUMERIC =       2
@@ -141,8 +143,6 @@ SQL_C_WCHAR =           SQL_WCHAR =         -8
 SQL_C_GUID =            SQL_GUID =          -11  
 SQL_C_TYPE_TIMESTAMP =  SQL_TYPE_TIMESTAMP = 93
 SQL_C_DEFAULT = 99
-
-SQL_SS_TIME2 = -154
 
 SQL_DESC_DISPLAY_SIZE = SQL_COLUMN_DISPLAY_SIZE
 
@@ -595,7 +595,8 @@ SQL_WLONGVARCHAR    : (unicode,             lambda x: x,                SQL_C_WC
 SQL_TYPE_DATE       : (datetime.date,       dt_cvt,                     SQL_C_CHAR,         create_buffer,      30     ),
 SQL_TYPE_TIME       : (datetime.time,       tm_cvt,                     SQL_C_CHAR,         create_buffer,      20     ),
 SQL_TYPE_TIMESTAMP  : (datetime.datetime,   dttm_cvt,                   SQL_C_CHAR,         create_buffer,      30      ), 
-SQL_SS_VARIANT      : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ),
+SQL_SS_VARIANT      : (str,                 lambda x: x,                SQL_C_CHAR,         create_buffer,      2048   ), 
+SQL_SS_UDT          : (bytearray,           bytearray,                  SQL_C_BINARY,       create_buffer,      5120   ),
 }
 
 
@@ -643,7 +644,7 @@ funcs_with_ret = [
     "SQLFreeStmt",
     "SQLGetData",
     "SQLGetDiagRec",
-	"SQLGetDiagRecW",
+    "SQLGetDiagRecW",
     "SQLGetInfo",
     "SQLGetTypeInfo",
     "SQLMoreResults",
